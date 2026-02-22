@@ -9,6 +9,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  pull-requests: write
+
 jobs:
   # ===========================================================================
   # Static Analysis (Linux, fast)
@@ -242,3 +245,144 @@ jobs:
           name: build-logs-${{ matrix.config.runner }}
           path: build/DerivedData/**/Logs/
           retention-days: 7
+
+  # ===========================================================================
+  # Build IPA (current branch, Release configuration)
+  # Runs on every push/PR so the artifact is always available.
+  # ===========================================================================
+
+  build-ipa:
+    name: "Build IPA"
+    runs-on: macos-15
+    needs: [xcodegen]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 16
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "16"
+
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: macos-15-homebrew-xcodegen-${{ hashFiles('Brewfile') }}
+          restore-keys: macos-15-homebrew-xcodegen-
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode Projects
+        run: bash scripts/ios/xcodegen-generate.sh
+
+      - name: Build Release
+        run: bash scripts/ios/xcode-build-release.sh
+
+      - name: Create IPA
+        run: bash scripts/ios/create-ipa.sh build/StarterApp.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ipa
+          path: build/StarterApp.ipa
+          retention-days: 7
+
+  # ===========================================================================
+  # Build Base IPA (PR base SHA, Release configuration) — PRs only
+  # Checks out the base commit so the comparison is apples-to-apples.
+  # ===========================================================================
+
+  build-base-ipa:
+    name: "Build Base IPA"
+    runs-on: macos-15
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+
+      - name: Select Xcode 16
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "16"
+
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: macos-15-homebrew-xcodegen-${{ hashFiles('Brewfile') }}
+          restore-keys: macos-15-homebrew-xcodegen-
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode Projects
+        run: bash scripts/ios/xcodegen-generate.sh
+
+      - name: Build Release
+        run: bash scripts/ios/xcode-build-release.sh
+
+      - name: Create IPA
+        run: bash scripts/ios/create-ipa.sh build/StarterApp-base.ipa
+
+      - name: Upload Base IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: base-ipa
+          path: build/StarterApp-base.ipa
+          retention-days: 7
+
+  # ===========================================================================
+  # Diff IPA from Base — PRs only
+  # Downloads both artifacts, diffs them, and posts a comment on the PR.
+  # Runs on ubuntu for speed (no Xcode needed — just unzip + bash math).
+  # ===========================================================================
+
+  diff-ipa-from-base:
+    name: "Diff IPA from Base"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: [build-ipa, build-base-ipa]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download current IPA
+        uses: actions/download-artifact@v4
+        with:
+          name: ipa
+          path: build/
+
+      - name: Download base IPA
+        uses: actions/download-artifact@v4
+        with:
+          name: base-ipa
+          path: build/
+
+      - name: Diff IPAs
+        run: bash scripts/ios/diff-ipa.sh build/StarterApp-base.ipa build/StarterApp.ipa build/ipa-diff.md
+
+      - name: Upload diff report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ipa-diff
+          path: build/ipa-diff.md
+          retention-days: 7
+
+      - name: Find existing PR comment
+        uses: peter-evans/find-comment@v3
+        id: find-comment
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: "## IPA Diff"
+
+      - name: Post diff to PR
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          edit-mode: replace
+          body-path: build/ipa-diff.md
+          token: ${{ secrets.GITHUB_TOKEN }}
