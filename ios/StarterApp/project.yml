@@ -9,6 +9,14 @@ configFiles:
   Debug: Configurations/Debug.xcconfig
   Release: Configurations/Release.xcconfig
 
+packages:
+  Alamofire:
+    url: https://github.com/Alamofire/Alamofire
+    from: "5.9.1"
+  SQLiteData:
+    url: https://github.com/pointfreeco/sqlite-data
+    from: "1.6.0"
+
 settings:
   base:
     SWIFT_VERSION: "5.9"
@@ -30,6 +38,10 @@ targets:
         INFOPLIST_FILE: Sources/Info.plist
         CODE_SIGN_STYLE: Automatic
         GENERATE_INFOPLIST_FILE: NO
+    dependencies:
+      - package: Alamofire
+      - package: SQLiteData
+        product: SQLiteData
 
   StarterAppTests:
     type: bundle.unit-test
