@@ -1,25 +1,19 @@
 #!/usr/bin/env bash
 
 # Cross-platform XML validation using xmlstarlet or xml command (macOS alias)
-validate_xml() {
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    xml "$@"
-  else
-    xmlstarlet "$@"
-  fi
-}
+XML_CMD="xmlstarlet"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  XML_CMD="xml"
+fi
 
 # Check for required XML tools
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  if ! command -v xml &>/dev/null; then
+if ! command -v "$XML_CMD" &>/dev/null; then
+  if [[ "$OSTYPE" == "darwin"* ]]; then
     echo "xmlstarlet missing. Try: brew install xmlstarlet"
-    exit 1
-  fi
-else
-  if ! command -v xmlstarlet &>/dev/null; then
+  else
     echo "xmlstarlet missing. Consult your OS package manager."
-    exit 1
   fi
+  exit 1
 fi
 
 # Start the timer
@@ -28,15 +22,19 @@ start_time=$(bash "$(pwd)/scripts/utils/get_timestamp.sh")
 # Determine parallel job count (cross-platform)
 parallel_jobs=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 
-# Export the function so xargs bash subshells can use it
-export -f validate_xml
-export OSTYPE
+# Collect XML files tracked by git
+mapfile -t xml_files < <(git ls-files --cached --others --exclude-standard | grep '\.xml$' || true)
 
-# Find XML files tracked by git and validate in parallel
-# shellcheck disable=SC2016
-errors=$(git ls-files --cached --others --exclude-standard -z |
-  grep -z '\.xml$' |
-  xargs -0 -n 1 -P "$parallel_jobs" bash -c 'validate_xml val -w -b -e "$0"' 2>&1)
+if [[ ${#xml_files[@]} -eq 0 ]]; then
+  end_time=$(bash "$(pwd)/scripts/utils/get_timestamp.sh")
+  total_elapsed=$((end_time - start_time))
+  echo "No XML files found in $total_elapsed ms."
+  exit 0
+fi
+
+# Validate in parallel
+errors=$(printf '%s\n' "${xml_files[@]}" \
+  | xargs -n 1 -P "$parallel_jobs" "$XML_CMD" val -w -b -e 2>&1)
 
 # Calculate total elapsed time
 end_time=$(bash "$(pwd)/scripts/utils/get_timestamp.sh")

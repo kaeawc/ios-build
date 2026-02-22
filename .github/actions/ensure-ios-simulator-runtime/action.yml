@@ -14,13 +14,13 @@ runs:
         echo "major_version=${major_version}" >> "$GITHUB_OUTPUT"
 
         match_count=$(xcrun simctl list runtimes iOS --json \
-          | python3 -c "
+          | python3 -c '
 import json, sys
 data = json.load(sys.stdin)
 major = sys.argv[1]
-count = sum(1 for r in data.get('runtimes', []) if r.get('version', '').startswith(major + '.'))
+count = sum(1 for r in data.get("runtimes", []) if r.get("version", "").startswith(major + "."))
 print(count)
-" "$major_version")
+' "$major_version")
         echo "Found ${match_count} iOS ${major_version}.x simulator runtime(s)"
         if [ "${match_count}" -eq 0 ]; then
           echo "::warning::No iOS ${major_version}.x simulator runtime found — downloading platform"
@@ -38,13 +38,13 @@ print(count)
       run: |
         major_version="${{ steps.check.outputs.major_version }}"
         match_count=$(xcrun simctl list runtimes iOS --json \
-          | python3 -c "
+          | python3 -c '
 import json, sys
 data = json.load(sys.stdin)
 major = sys.argv[1]
-count = sum(1 for r in data.get('runtimes', []) if r.get('version', '').startswith(major + '.'))
+count = sum(1 for r in data.get("runtimes", []) if r.get("version", "").startswith(major + "."))
 print(count)
-" "$major_version")
+' "$major_version")
         echo "Found ${match_count} iOS ${major_version}.x simulator runtime(s) after download"
         if [ "${match_count}" -eq 0 ]; then
           echo "::error::Still no iOS ${major_version}.x simulator runtime after download"
