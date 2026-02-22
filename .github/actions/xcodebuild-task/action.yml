@@ -1,0 +1,64 @@
+name: XcodeBuild Task
+description: Sets up Xcode, installs xcodegen, generates projects, and runs an xcodebuild task.
+
+inputs:
+  xcode-version:
+    description: Xcode version to select (e.g. "16.2")
+    required: false
+    default: ""
+  xcodebuild-task:
+    description: The script to run (e.g. scripts/ios/xcode-build.sh)
+    required: true
+  scheme:
+    description: The Xcode scheme to use
+    required: false
+    default: "StarterApp"
+
+runs:
+  using: composite
+  steps:
+    - name: Select Xcode version
+      if: inputs.xcode-version != ''
+      shell: bash
+      run: |
+        XCODE_PATH="/Applications/Xcode_${{ inputs.xcode-version }}.app"
+        if [[ -d "$XCODE_PATH" ]]; then
+          sudo xcode-select -s "$XCODE_PATH"
+          echo "Selected Xcode ${{ inputs.xcode-version }}"
+        else
+          echo "Xcode ${{ inputs.xcode-version }} not found at $XCODE_PATH, using default"
+          xcode-select -p
+        fi
+
+    - name: Show Xcode version
+      shell: bash
+      run: xcodebuild -version
+
+    - name: Cache Homebrew packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/Library/Caches/Homebrew/downloads
+          /opt/homebrew/Cellar/xcodegen
+        key: ${{ runner.os }}-homebrew-xcodegen-${{ hashFiles('ios/**/project.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-homebrew-xcodegen-
+
+    - name: Install xcodegen
+      shell: bash
+      run: |
+        if ! command -v xcodegen &>/dev/null; then
+          brew install xcodegen
+        else
+          echo "xcodegen already installed: $(xcodegen --version)"
+        fi
+
+    - name: Generate Xcode project(s)
+      shell: bash
+      run: bash scripts/ios/xcodegen-generate.sh
+
+    - name: Run ${{ inputs.xcodebuild-task }}
+      shell: bash
+      env:
+        SCHEME: ${{ inputs.scheme }}
+      run: bash ${{ inputs.xcodebuild-task }}

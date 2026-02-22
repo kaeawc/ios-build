@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+
+if ! command -v xcodegen &>/dev/null; then
+  echo "⚠ xcodegen not installed — skipping project generation (brew install xcodegen)"
+  exit 0
+fi
+
+echo "→ Regenerating Xcode project(s) after merge..."
+bash "$PROJECT_ROOT/scripts/ios/xcodegen-generate.sh"

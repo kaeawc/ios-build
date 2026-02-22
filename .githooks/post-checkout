@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+# $1 = previous HEAD, $2 = new HEAD, $3 = 1 if branch checkout, 0 if file checkout
+CHECKOUT_TYPE=$3
+
+# Only regenerate on branch checkouts, not individual file checkouts
+if [[ "$CHECKOUT_TYPE" != "1" ]]; then
+  exit 0
+fi
+
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+
+if ! command -v xcodegen &>/dev/null; then
+  echo "⚠ xcodegen not installed — skipping project generation (brew install xcodegen)"
+  exit 0
+fi
+
+echo "→ Regenerating Xcode project(s)..."
+bash "$PROJECT_ROOT/scripts/ios/xcodegen-generate.sh"

@@ -1,0 +1,254 @@
+name: Commit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ===========================================================================
+  # Static Analysis (Linux, fast)
+  # ===========================================================================
+
+  shellcheck:
+    name: "ShellCheck"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Validate shell scripts
+        run: bash scripts/shellcheck/validate_shell_scripts.sh
+
+  validate-xml:
+    name: "Validate XML"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install xmlstarlet
+        run: sudo apt-get install -y xmlstarlet
+
+      - name: Validate XML files
+        run: bash scripts/xml/validate_xml.sh
+
+  # ===========================================================================
+  # Swift Code Quality (macOS)
+  # These run on macos-15 only — formatting rules are Xcode-version-agnostic.
+  # Caching the Homebrew download cache (~10-25 MB per tool) means `brew install`
+  # extracts from local disk instead of re-downloading on every run.
+  # ===========================================================================
+
+  swiftformat:
+    name: "SwiftFormat"
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: macos-15-homebrew-swiftformat-${{ hashFiles('Brewfile') }}
+          restore-keys: macos-15-homebrew-swiftformat-
+
+      - name: Install SwiftFormat
+        run: brew install swiftformat
+
+      - name: Validate SwiftFormat
+        run: ONLY_TOUCHED_FILES=false bash scripts/swiftformat/validate_swiftformat.sh
+
+  swiftlint:
+    name: "SwiftLint"
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: macos-15-homebrew-swiftlint-${{ hashFiles('Brewfile') }}
+          restore-keys: macos-15-homebrew-swiftlint-
+
+      - name: Install SwiftLint
+        run: brew install swiftlint
+
+      - name: Validate SwiftLint
+        run: ONLY_TOUCHED_FILES=false bash scripts/swiftlint/validate_swiftlint.sh
+
+  # ===========================================================================
+  # XcodeGen Validation (single runner, cheap pre-check before the matrix)
+  # ===========================================================================
+
+  xcodegen:
+    name: "Generate Xcode Projects"
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: macos-15-homebrew-xcodegen-${{ hashFiles('Brewfile') }}
+          restore-keys: macos-15-homebrew-xcodegen-
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode Projects
+        run: bash scripts/ios/xcodegen-generate.sh
+
+  # ===========================================================================
+  # Build for Testing (matrix: macOS 15 + 26)
+  #
+  # Caching strategy:
+  #   - Homebrew downloads: keyed on Brewfile so a tool upgrade busts it
+  #   - DerivedData intermediates: keyed on Xcode version + source/config hashes
+  #     so clean rebuilds only happen when sources actually change. On a cache
+  #     hit Xcode only recompiles dirty translation units — a 60s build becomes
+  #     a few seconds. Restore-key fallback allows partial reuse when some files
+  #     changed.
+  #
+  # Uploads Build/Products (app bundles + .xctestrun) as a short-lived artifact
+  # so the simulator-tests matrix can test-without-building on the same binaries.
+  # ===========================================================================
+
+  build-for-testing:
+    name: "Build for Testing (${{ matrix.config.name }})"
+    runs-on: ${{ matrix.config.runner }}
+    needs: [xcodegen]
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - { name: "Xcode 16 (macOS 15)", runner: "macos-15", xcode: "16" }
+          - { name: "Xcode 26 (macOS 26)", runner: "macos-26", xcode: "26" }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode ${{ matrix.config.xcode }}
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ matrix.config.xcode }}
+
+      - name: Ensure iOS Simulator runtime
+        uses: ./.github/actions/ensure-ios-simulator-runtime
+
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/Homebrew
+          key: ${{ matrix.config.runner }}-homebrew-xcodegen-${{ hashFiles('Brewfile') }}
+          restore-keys: ${{ matrix.config.runner }}-homebrew-xcodegen-
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      # Restore incremental compilation artifacts. COMPILER_INDEX_STORE_ENABLE=NO
+      # and INDEX_ENABLE_DATA_STORE=NO (set in the build script) keep intermediates
+      # small by skipping the index store (~40% of DerivedData size).
+      - name: Cache DerivedData intermediates
+        uses: actions/cache@v4
+        with:
+          path: build/DerivedData/Build/Intermediates.noindex
+          key: ${{ matrix.config.runner }}-xcode${{ matrix.config.xcode }}-intermediates-${{ hashFiles('ios/**/*.swift', 'ios/**/project.yml', 'ios/**/*.xcconfig') }}
+          restore-keys: ${{ matrix.config.runner }}-xcode${{ matrix.config.xcode }}-intermediates-
+
+      - name: Generate Xcode Projects
+        run: bash scripts/ios/xcodegen-generate.sh
+
+      - name: Build for Testing
+        run: bash scripts/ios/xcode-build-for-testing.sh
+
+      - name: Upload build products
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-for-testing-${{ matrix.config.runner }}
+          # Build/Products contains the app bundles and the .xctestrun file.
+          # Intermediates are NOT uploaded — they're only needed for incremental
+          # local/CI builds and are already covered by the DerivedData cache above.
+          path: build/DerivedData/Build/Products/
+          retention-days: 1
+
+  # ===========================================================================
+  # Simulator Tests (matrix: macOS 15 + 26)
+  # Downloads the matching build-for-testing artifact and runs
+  # test-without-building so no recompilation happens here at all.
+  # ===========================================================================
+
+  simulator-tests:
+    name: "Simulator Tests (${{ matrix.config.name }})"
+    runs-on: ${{ matrix.config.runner }}
+    needs: [build-for-testing]
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - { name: "Xcode 16 (macOS 15)", runner: "macos-15", xcode: "16" }
+          - { name: "Xcode 26 (macOS 26)", runner: "macos-26", xcode: "26" }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode ${{ matrix.config.xcode }}
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ matrix.config.xcode }}
+
+      - name: Ensure iOS Simulator runtime
+        uses: ./.github/actions/ensure-ios-simulator-runtime
+
+      - name: Download build products
+        uses: actions/download-artifact@v4
+        with:
+          name: build-for-testing-${{ matrix.config.runner }}
+          path: build/DerivedData/Build/Products/
+
+      - name: Boot iOS Simulator
+        run: |
+          DEVICE=$(xcrun simctl list devices available --json \
+            | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          devs = [
+              d for devices in data.get('devices', {}).values()
+              for d in devices
+              if d.get('isAvailable') and 'iPhone' in d.get('name', '')
+          ]
+          print(devs[0]['name'] if devs else '')
+          ")
+          if [[ -z "$DEVICE" ]]; then
+            echo "No available iPhone simulator found"
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "Booting simulator: ${DEVICE}"
+          xcrun simctl boot "${DEVICE}"
+          xcrun simctl bootstatus "${DEVICE}" -b
+
+      - name: Run simulator tests
+        run: bash scripts/ios/xcode-test-without-building.sh
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.config.runner }}
+          path: build/test.xcresult
+          retention-days: 7
+
+      - name: Upload build logs on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: build-logs-${{ matrix.config.runner }}
+          path: build/DerivedData/**/Logs/
+          retention-days: 7
