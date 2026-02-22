@@ -222,7 +222,7 @@ jobs:
           fi
           echo "Booting simulator: ${DEVICE}"
           xcrun simctl boot "${DEVICE}"
-          xcrun simctl bootstatus "${DEVICE}" -b
+          bash scripts/ios/wait-for-simulator-boot.sh "${DEVICE}"
 
       - name: Run simulator tests
         run: bash scripts/ios/xcode-test-without-building.sh
