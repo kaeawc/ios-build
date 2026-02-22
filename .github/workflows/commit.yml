@@ -129,7 +129,7 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { name: "Xcode 15 (macOS 15)", runner: "macos-15", xcode: "15" }
+          - { name: "Xcode 16 (macOS 15)", runner: "macos-15", xcode: "16" }
           - { name: "Xcode 26 (macOS 26)", runner: "macos-26", xcode: "26" }
     steps:
       - uses: actions/checkout@v4
@@ -193,7 +193,7 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { name: "Xcode 15 (macOS 15)", runner: "macos-15", xcode: "15" }
+          - { name: "Xcode 16 (macOS 15)", runner: "macos-15", xcode: "16" }
           - { name: "Xcode 26 (macOS 26)", runner: "macos-26", xcode: "26" }
     steps:
       - uses: actions/checkout@v4
@@ -214,8 +214,7 @@ jobs:
 
       - name: Boot iOS Simulator
         run: |
-          DEVICE=$(xcrun simctl list devices available --json \
-            | python3 -c 'import json,sys;d=json.load(sys.stdin);devs=[x for vs in d.get("devices",{}).values() for x in vs if x.get("isAvailable") and "iPhone" in x.get("name","")];print(devs[0]["name"] if devs else "")')
+          DEVICE=$(bash scripts/ios/find-available-iphone.sh)
           if [[ -z "$DEVICE" ]]; then
             echo "No available iPhone simulator found"
             xcrun simctl list devices available

@@ -18,16 +18,7 @@ fi
 echo "Using xctestrun: $xctestrun_file"
 
 # Find a booted iPhone simulator
-booted_udid=$(xcrun simctl list devices booted --json 2>/dev/null | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-for devices in data.get('devices', {}).values():
-    for d in devices:
-        if d.get('state') == 'Booted' and 'iPhone' in d.get('name', ''):
-            print(d['udid'])
-            sys.exit(0)
-sys.exit(1)
-" 2>/dev/null || echo "")
+booted_udid=$(bash "$PROJECT_ROOT/scripts/ios/find-booted-iphone-udid.sh" 2>/dev/null || echo "")
 
 if [[ -z "$booted_udid" ]]; then
   echo "No booted iPhone simulator found"
