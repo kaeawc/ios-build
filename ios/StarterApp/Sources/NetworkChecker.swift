@@ -15,13 +15,13 @@ enum NetworkChecker {
         return await [dns, http]
     }
 
-    // Uses NetworkReachabilityManager (SCNetworkReachability) — no HTTP needed.
+    /// Uses NetworkReachabilityManager (SCNetworkReachability) — no HTTP needed.
     private static func check8888() async -> NetworkCheckResult {
         let isReachable = NetworkReachabilityManager(host: "8.8.8.8")?.isReachable ?? false
         return NetworkCheckResult(host: "8.8.8.8", isReachable: isReachable, statusCode: nil)
     }
 
-    // Makes a HEAD request to verify application-layer HTTP connectivity.
+    /// Makes a HEAD request to verify application-layer HTTP connectivity.
     private static func checkExampleCom() async -> NetworkCheckResult {
         let response = await AF.request("https://example.com", method: .head)
             .serializingData()

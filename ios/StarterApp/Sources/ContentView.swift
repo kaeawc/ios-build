@@ -4,8 +4,7 @@ import SwiftUI
 struct ContentView: View {
     let networkResults: [NetworkCheckResult]
 
-    @FetchOne(Session.count())
-    var sessionCount: Int = 0
+    @FetchOne(Session.count()) var sessionCount = 0
 
     var body: some View {
         VStack(spacing: 16) {
