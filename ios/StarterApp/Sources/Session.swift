@@ -1,7 +1,7 @@
 import Foundation
 import SQLiteData
 
-@Table
+@Table("session")
 struct Session {
     var id: UUID
     var launchedAt: Date

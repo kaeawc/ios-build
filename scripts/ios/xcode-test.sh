@@ -48,9 +48,11 @@ xcodebuild test \
   -destination "$destination" \
   -derivedDataPath "$DERIVED_DATA_PATH" \
   -resultBundlePath "$RESULT_BUNDLE_PATH" \
+  -skipMacroValidation \
   CODE_SIGN_IDENTITY="" \
   CODE_SIGNING_REQUIRED=NO \
-  CODE_SIGNING_ALLOWED=NO
+  CODE_SIGNING_ALLOWED=NO \
+  SWIFT_ENABLE_EXPLICIT_MODULES=NO
 
 test_exit_code=$?
 elapsed=$(($(date +%s) - start_time))
