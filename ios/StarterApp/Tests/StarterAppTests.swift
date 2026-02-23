@@ -10,7 +10,7 @@ final class StarterAppTests: XCTestCase {
 
     func testContentViewCreation() {
         // Verify ContentView can be instantiated without crashing.
-        let view = ContentView()
+        let view = ContentView(networkResults: [])
         XCTAssertNotNil(view)
     }
 }
