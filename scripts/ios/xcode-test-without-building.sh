@@ -36,7 +36,8 @@ xcodebuild test-without-building \
   -destination "platform=iOS Simulator,id=$booted_udid" \
   -resultBundlePath "$RESULT_BUNDLE_PATH" \
   -enableCodeCoverage NO \
-  -parallel-testing-enabled YES
+  -parallel-testing-enabled YES \
+  -skipMacroValidation
 
 test_exit_code=$?
 elapsed=$(($(date +%s) - start_time))
