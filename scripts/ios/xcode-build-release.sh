@@ -28,7 +28,8 @@ xcodebuild build \
   CODE_SIGNING_REQUIRED=NO \
   CODE_SIGNING_ALLOWED=NO \
   COMPILER_INDEX_STORE_ENABLE=NO \
-  INDEX_ENABLE_DATA_STORE=NO
+  INDEX_ENABLE_DATA_STORE=NO \
+  SWIFT_ENABLE_EXPLICIT_MODULES=NO
 
 build_exit_code=$?
 elapsed=$(($(date +%s) - start_time))
