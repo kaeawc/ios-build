@@ -16,6 +16,9 @@ packages:
   SQLiteData:
     url: https://github.com/pointfreeco/sqlite-data
     from: "1.6.0"
+  Dependencies:
+    url: https://github.com/pointfreeco/swift-dependencies
+    from: "1.0.0"
 
 settings:
   base:
@@ -50,6 +53,8 @@ targets:
       - path: Tests
     dependencies:
       - target: StarterApp
+      - package: Dependencies
+        product: Dependencies
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.jasonpearson.ios.StarterAppTests

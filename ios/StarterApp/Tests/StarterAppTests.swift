@@ -1,3 +1,5 @@
+import Dependencies
+import SQLiteData
 import XCTest
 
 @testable import StarterApp
@@ -8,9 +10,13 @@ final class StarterAppTests: XCTestCase {
         XCTAssertTrue(true)
     }
 
-    func testContentViewCreation() {
-        // Verify ContentView can be instantiated without crashing.
-        let view = ContentView(networkResults: [])
-        XCTAssertNotNil(view)
+    func testContentViewCreation() throws {
+        // Verify ContentView can be instantiated with an in-memory test database.
+        try withDependencies {
+            $0.defaultDatabase = try DatabaseQueue()
+        } operation: {
+            let view = ContentView(networkResults: [])
+            XCTAssertNotNil(view)
+        }
     }
 }
