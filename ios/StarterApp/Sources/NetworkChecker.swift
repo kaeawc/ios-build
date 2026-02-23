@@ -1,11 +1,23 @@
 import Alamofire
 import Foundation
 
+// MARK: - NetworkState
+
+enum NetworkState {
+    case idle
+    case checking
+    case complete([NetworkCheckResult])
+}
+
+// MARK: - NetworkCheckResult
+
 struct NetworkCheckResult {
     let host: String
     let isReachable: Bool
     let statusCode: Int?
 }
+
+// MARK: - NetworkChecker
 
 enum NetworkChecker {
     /// Checks connectivity to 8.8.8.8 (network layer) and example.com (HTTP).

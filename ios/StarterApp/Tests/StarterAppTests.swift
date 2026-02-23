@@ -15,7 +15,7 @@ final class StarterAppTests: XCTestCase {
         try withDependencies {
             $0.defaultDatabase = try DatabaseQueue()
         } operation: {
-            let view = ContentView(networkResults: [])
+            let view = ContentView(networkState: .idle)
             XCTAssertNotNil(view)
         }
     }

@@ -4,7 +4,7 @@ import SwiftUI
 @main
 struct StarterApp: App {
     private let database: DatabaseQueue
-    @State private var networkResults: [NetworkCheckResult] = []
+    @State private var networkState: NetworkState = .idle
 
     init() {
         do {
@@ -19,7 +19,7 @@ struct StarterApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(networkResults: networkResults)
+            ContentView(networkState: networkState)
                 .task {
                     do {
                         try await database.write { db in
@@ -31,7 +31,13 @@ struct StarterApp: App {
                     } catch {
                         print("Session insert failed: \(error)")
                     }
-                    networkResults = await NetworkChecker.checkAll()
+                    withAnimation {
+                        networkState = .checking
+                    }
+                    let results = await NetworkChecker.checkAll()
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        networkState = .complete(results)
+                    }
                 }
         }
     }
