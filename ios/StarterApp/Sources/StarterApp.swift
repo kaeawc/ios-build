@@ -22,7 +22,7 @@ struct StarterApp: App {
             ContentView(networkResults: networkResults)
                 .task {
                     do {
-                        try database.write { db in
+                        try await database.write { db in
                             try Session.insert {
                                 Session(id: UUID(), launchedAt: Date())
                             }

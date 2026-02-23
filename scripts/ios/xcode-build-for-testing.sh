@@ -23,6 +23,7 @@ xcodebuild build-for-testing \
   -destination "generic/platform=iOS Simulator" \
   -derivedDataPath "$DERIVED_DATA_PATH" \
   -enableCodeCoverage NO \
+  -skipMacroValidation \
   CODE_SIGN_IDENTITY="" \
   CODE_SIGNING_REQUIRED=NO \
   CODE_SIGNING_ALLOWED=NO \
