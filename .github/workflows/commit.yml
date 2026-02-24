@@ -181,6 +181,35 @@ jobs:
           path: build/DerivedData/Build/Products/
           retention-days: 1
 
+      # xcodebuild test-without-building -xctestrun hangs on Xcode 26.3 RC
+      # (IDERunDestination: Supported platforms for the buildables in the
+      # current scheme is empty). Run tests here inline using xcode-test.sh
+      # (-project/-scheme) which is not affected by the RC bug.
+      - name: Boot iOS Simulator (Xcode 26)
+        if: matrix.config.xcode == '26'
+        run: |
+          DEVICE=$(bash scripts/ios/find-available-iphone.sh)
+          if [[ -z "$DEVICE" ]]; then
+            echo "No available iPhone simulator found"
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "Booting simulator: ${DEVICE}"
+          xcrun simctl boot "${DEVICE}"
+          bash scripts/ios/wait-for-simulator-boot.sh "${DEVICE}"
+
+      - name: Run simulator tests (Xcode 26)
+        if: matrix.config.xcode == '26'
+        run: bash scripts/ios/xcode-test.sh
+
+      - name: Upload test results (Xcode 26)
+        uses: actions/upload-artifact@v4
+        if: matrix.config.xcode == '26'
+        with:
+          name: test-results-${{ matrix.config.runner }}
+          path: build/test.xcresult
+          retention-days: 7
+
   # ===========================================================================
   # Simulator Tests (matrix: macOS 15 + 26)
   # Downloads the matching build-for-testing artifact and runs
@@ -197,7 +226,8 @@ jobs:
       matrix:
         config:
           - { name: "Xcode 16 (macOS 15)", runner: "macos-15", xcode: "16" }
-          - { name: "Xcode 26 (macOS 26)", runner: "macos-26", xcode: "26" }
+          # Xcode 26 tests run inside build-for-testing via xcode-test.sh;
+          # test-without-building -xctestrun hangs on Xcode 26.3 RC.
     steps:
       - uses: actions/checkout@v4
 
