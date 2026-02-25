@@ -9,12 +9,12 @@ DERIVED_DATA_PATH="${DERIVED_DATA_PATH:-$PROJECT_ROOT/build/DerivedData}"
 
 output_path="${1:?Usage: create-ipa.sh <output_path>}"
 
-# Release builds land in Release-iphonesimulator/
-app_bundle=$(find "$DERIVED_DATA_PATH/Build/Products/Release-iphonesimulator" \
+# Debug builds land in Debug-iphonesimulator/
+app_bundle=$(find "$DERIVED_DATA_PATH/Build/Products/Debug-iphonesimulator" \
   -maxdepth 1 -name "*.app" 2>/dev/null | head -1)
 
 if [[ -z "$app_bundle" ]]; then
-  echo "No .app bundle found in: $DERIVED_DATA_PATH/Build/Products/Release-iphonesimulator"
+  echo "No .app bundle found in: $DERIVED_DATA_PATH/Build/Products/Debug-iphonesimulator"
   ls -la "$DERIVED_DATA_PATH/Build/Products/" 2>/dev/null || echo "(directory missing)"
   exit 1
 fi

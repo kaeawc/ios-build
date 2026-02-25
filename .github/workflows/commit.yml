@@ -305,14 +305,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/DerivedData/Build/Intermediates.noindex
-          key: macos-15-xcode16-release-intermediates-${{ hashFiles('ios/**/*.swift', 'ios/**/project.yml', 'ios/**/*.xcconfig') }}
-          restore-keys: macos-15-xcode16-release-intermediates-
+          key: macos-15-xcode16-intermediates-${{ hashFiles('ios/**/*.swift', 'ios/**/project.yml', 'ios/**/*.xcconfig') }}
+          restore-keys: macos-15-xcode16-intermediates-
 
       - name: Generate Xcode Projects
         run: bash scripts/ios/xcodegen-generate.sh
 
-      - name: Build Release
-        run: bash scripts/ios/xcode-build-release.sh
+      - name: Build
+        run: bash scripts/ios/xcode-build.sh
 
       - name: Create IPA
         run: bash scripts/ios/create-ipa.sh build/StarterApp.ipa
@@ -325,7 +325,7 @@ jobs:
           retention-days: 7
 
   # ===========================================================================
-  # Build Base IPA (PR base SHA, Release configuration) — PRs only
+  # Build Base IPA (PR base SHA, Debug configuration) — PRs only
   # Checks out the base commit so the comparison is apples-to-apples.
   # ===========================================================================
 
@@ -364,14 +364,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/DerivedData/Build/Intermediates.noindex
-          key: macos-15-xcode16-release-intermediates-${{ hashFiles('ios/**/*.swift', 'ios/**/project.yml', 'ios/**/*.xcconfig') }}
-          restore-keys: macos-15-xcode16-release-intermediates-
+          key: macos-15-xcode16-intermediates-${{ hashFiles('ios/**/*.swift', 'ios/**/project.yml', 'ios/**/*.xcconfig') }}
+          restore-keys: macos-15-xcode16-intermediates-
 
       - name: Generate Xcode Projects
         run: bash scripts/ios/xcodegen-generate.sh
 
-      - name: Build Release
-        run: bash scripts/ios/xcode-build-release.sh
+      - name: Build
+        run: bash scripts/ios/xcode-build.sh
 
       - name: Create IPA
         run: bash scripts/ios/create-ipa.sh build/StarterApp-base.ipa
