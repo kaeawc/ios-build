@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Setup
 ```bash
-brew bundle                          # Install required tools (shellcheck, swiftformat, swiftlint, xmlstarlet, xcodegen)
+brew bundle                          # Install required tools (shellcheck, swiftformat, swiftlint, xmlstarlet, xcodegen, yamllint)
 git config core.hooksPath .githooks  # Install git hooks
 bash scripts/ios/xcodegen-generate.sh  # Generate .xcodeproj from project.yml (required before opening in Xcode)
 ```
@@ -16,20 +16,22 @@ bash scripts/ios/xcodegen-generate.sh  # Generate .xcodeproj from project.yml (r
 bash scripts/ios/xcode-build.sh              # Debug build for iOS Simulator
 bash scripts/ios/xcode-build-for-testing.sh  # Build test artifacts
 bash scripts/ios/xcode-build-release.sh      # Release build
-bash scripts/ios/create-ipa.sh               # Package IPA from release build
+bash scripts/ios/create-ipa.sh <output.ipa>  # Package IPA from release build
 ```
 
 ### Testing
 ```bash
-bash scripts/ios/xcode-test.sh                      # Build and run unit tests
-bash scripts/ios/xcode-test-without-building.sh     # Run tests against pre-built binaries
+bash scripts/ios/xcode-test.sh                   # Build and run unit tests
+bash scripts/ios/xcode-test-without-building.sh  # Run tests against pre-built binaries
 ```
 
-### Linting & Formatting
+### Validation
 ```bash
-bash scripts/swiftformat/run.sh    # Format Swift files
-bash scripts/swiftlint/run.sh      # Lint Swift files
-bash scripts/shellcheck/run.sh     # Validate shell scripts
+ONLY_TOUCHED_FILES=false bash scripts/shellcheck/validate_shell_scripts.sh  # Validate all shell scripts + git hooks
+ONLY_TOUCHED_FILES=false bash scripts/swiftformat/validate_swiftformat.sh   # Check Swift formatting
+ONLY_TOUCHED_FILES=false bash scripts/swiftlint/validate_swiftlint.sh       # Lint Swift files
+bash scripts/xml/validate_xml.sh    # Validate XML and plist files
+bash scripts/yaml/validate_yaml.sh  # Validate YAML files
 ```
 
 ## Architecture
@@ -58,23 +60,35 @@ Small starter app used to validate build infrastructure. Key source files:
 - **`Configurations/Debug.xcconfig`** — `-Onone`, single-file compilation, testability enabled, active arch only
 - **`Configurations/Release.xcconfig`** — `-O`, whole-module optimization, dSYM output, all architectures
 
-Notable build flags applied in scripts:
-- `SWIFT_ENABLE_EXPLICIT_MODULES=NO` — Workaround for Xcode 26.3 RC bug
-- `-skipMacroValidation` — Passed as `OTHER_SWIFT_FLAGS` to work around Xcode 26.3 RC macro validation
-- `COMPILER_INDEX_STORE_ENABLE=NO`, `INDEX_ENABLE_DATA_STORE=NO` — Reduce DerivedData size in CI
+Notable build flags applied in scripts (all build/test scripts):
+- `-skipMacroValidation` — Skips macro validation for faster CI builds
+- `COMPILER_INDEX_STORE_ENABLE=NO`, `INDEX_ENABLE_DATA_STORE=NO` — Reduce DerivedData size (~40%) in CI
 - `CODE_SIGN_IDENTITY=""` / `CODE_SIGNING_REQUIRED=NO` — Simulator-only; no signing needed
+- `SWIFT_ENABLE_EXPLICIT_MODULES=NO` — Applied in test scripts for compatibility
 
 ### CI/CD (`.github/workflows/commit.yml`)
-Jobs run on every push/PR in this order:
+Jobs run on every push/PR:
 
-1. **Static analysis** (Ubuntu): `shellcheck`, `validate-xml`
+1. **Static analysis** (Ubuntu): `shellcheck`, `validate-xml` (covers `.xml` + `.plist`), `validate-yaml`
 2. **Swift quality** (macOS 15): `swiftformat`, `swiftlint`
-3. **Build matrix** (macOS 15 + macOS 26, Xcode 16 + Xcode 26): `xcodegen`, `build-for-testing`, `simulator-tests`
-4. **IPA diff** (macOS 15): builds IPA for current branch and PR base, posts binary size diff as PR comment
+3. **XcodeGen validation** (macOS 15): generates projects as a cheap pre-check before the build matrix
+4. **Build matrix** (macOS 15 + macOS 26, Xcode 16 + Xcode 26.2): `build-for-testing` uploads build products as artifacts
+5. **Simulator tests** (macOS 15 / Xcode 16 only): downloads artifact, runs `test-without-building`
+6. **IPA diff** (macOS 15 + Ubuntu): builds IPA for current branch and PR base, posts binary size diff as PR comment
 
-DerivedData intermediates are cached per Xcode version + source hash to enable incremental CI builds.
+**Caching strategy**: All three build jobs (`build-for-testing`, `build-ipa`, `build-base-ipa`) cache:
+- Homebrew downloads — keyed on `Brewfile`
+- SPM packages (`build/DerivedData/SourcePackages`) — keyed on `project.yml`
+- DerivedData intermediates (`build/DerivedData/Build/Intermediates.noindex`) — keyed on Xcode version + source/config hashes; `build-ipa`/`build-base-ipa` use a separate `release-intermediates-` key to avoid collision with debug builds
+
+### YAML Linting
+`.yamllint.yml` extends yamllint's default config with:
+- `truthy.check-keys: false` — allows unquoted `YES`/`NO` as map keys (only values are checked)
+- `braces.max-spaces-inside: 1` — permits `${{ expr }}` style in GitHub Actions
+- `line-length.max: 200` — accommodates long `xcodebuild` flag lists
+- `document-start: disable` — does not require `---` at the top of files
 
 ### Code Style
 - **SwiftFormat**: 120-char line width, 4-space indent, import sorting enabled. Config in `.swiftformat`.
 - **SwiftLint**: 25+ opt-in rules; formatting rules disabled (delegated to SwiftFormat). Config in `.swiftlint.yml`.
-- Pre-commit hook runs both tools on touched files only.
+- Pre-commit hook runs shellcheck (touched files only), swiftformat, and swiftlint on touched files.
