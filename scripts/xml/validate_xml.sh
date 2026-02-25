@@ -1,17 +1,11 @@
 #!/usr/bin/env bash
 
-# Cross-platform XML validation using xmlstarlet or xml command (macOS alias)
-XML_CMD="xmlstarlet"
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  XML_CMD="xml"
-fi
-
-# Check for required XML tools
-if ! command -v "$XML_CMD" &>/dev/null; then
+# xmllint is built-in on macOS and available via libxml2-utils on Linux.
+if ! command -v xmllint &>/dev/null; then
   if [[ "$OSTYPE" == "darwin"* ]]; then
-    echo "xmlstarlet missing. Try: brew install xmlstarlet"
+    echo "xmllint missing (expected to be built-in on macOS)"
   else
-    echo "xmlstarlet missing. Consult your OS package manager."
+    echo "xmllint missing. Try: sudo apt-get install libxml2-utils"
   fi
   exit 1
 fi
@@ -32,10 +26,12 @@ if [[ ${#xml_files[@]} -eq 0 ]]; then
   exit 0
 fi
 
-# Validate in parallel. --nonet prevents xmlstarlet from fetching external
-# DTDs over the network (e.g. the Apple plist DTD in Info.plist's DOCTYPE).
+# Validate in parallel. --nonet prevents fetching external DTDs over the
+# network (e.g. the Apple plist DTD declared in Info.plist's DOCTYPE).
+# --noout suppresses document output; only errors are printed.
+# shellcheck disable=SC2016
 errors=$(printf '%s\n' "${xml_files[@]}" \
-  | xargs -n 1 -P "$parallel_jobs" "$XML_CMD" --nonet val -w -b -e 2>&1)
+  | xargs -n 1 -P "$parallel_jobs" bash -c 'xmllint --nonet --noout "$0" 2>&1')
 
 # Calculate total elapsed time
 end_time=$(bash "$(pwd)/scripts/utils/get_timestamp.sh")

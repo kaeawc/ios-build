@@ -35,8 +35,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install xmlstarlet
-        run: sudo apt-get install -y xmlstarlet
+      - name: Install xmllint
+        run: sudo apt-get install -y libxml2-utils
 
       - name: Validate XML files
         run: bash scripts/xml/validate_xml.sh
