@@ -4,5 +4,12 @@ rules:
   truthy:
     allowed-values: ['true', 'false']
     check-keys: false
+  # Flow mappings like {name: "...", runner: "...", xcode: "..."} read better
+  # with a space inside braces.
+  braces:
+    max-spaces-inside: 1
+  # Long GitHub Actions expressions (hashFiles, matrix refs) regularly exceed 80.
   line-length:
-    max: 150
+    max: 200
+  # YAML documents in this repo don't use --- markers.
+  document-start: disable

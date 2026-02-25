@@ -32,9 +32,10 @@ if [[ ${#xml_files[@]} -eq 0 ]]; then
   exit 0
 fi
 
-# Validate in parallel
+# Validate in parallel. --nonet prevents xmlstarlet from fetching external
+# DTDs over the network (e.g. the Apple plist DTD in Info.plist's DOCTYPE).
 errors=$(printf '%s\n' "${xml_files[@]}" \
-  | xargs -n 1 -P "$parallel_jobs" "$XML_CMD" val -w -b -e 2>&1)
+  | xargs -n 1 -P "$parallel_jobs" "$XML_CMD" --nonet val -w -b -e 2>&1)
 
 # Calculate total elapsed time
 end_time=$(bash "$(pwd)/scripts/utils/get_timestamp.sh")

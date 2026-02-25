@@ -24,19 +24,25 @@ if [[ ${#yaml_files[@]} -eq 0 ]]; then
   exit 0
 fi
 
-# Validate (yamllint is fast enough that parallel adds overhead for small repos)
-errors=$(printf '%s\n' "${yaml_files[@]}" | xargs yamllint -c .yamllint.yml 2>&1)
+# Validate all files in one yamllint invocation and capture output + exit code.
+# yamllint exits 0 (pass, possibly with warnings), 1 (errors found), or 2 (config error).
+output=$(yamllint -c .yamllint.yml "${yaml_files[@]}" 2>&1)
+exit_code=$?
 
 # Calculate total elapsed time
 end_time=$(bash "$(pwd)/scripts/utils/get_timestamp.sh")
 total_elapsed=$((end_time - start_time))
 
-# Check and report errors
-if [[ -n $errors ]]; then
-  echo "Errors in the following files:"
-  echo "$errors"
+if [[ $exit_code -ne 0 ]]; then
+  echo "YAML errors found:"
+  echo "$output"
   echo "Total time elapsed: $total_elapsed ms."
-  exit 1
+  exit "$exit_code"
+fi
+
+if [[ -n "$output" ]]; then
+  echo "YAML warnings (not blocking):"
+  echo "$output"
 fi
 
 echo "All YAML files are valid."

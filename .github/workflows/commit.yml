@@ -167,6 +167,16 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
+      # SPM checkouts are stored under SourcePackages/ when using a custom
+      # -derivedDataPath. Caching them avoids re-cloning Alamofire,
+      # SQLiteData, and swift-dependencies on every run.
+      - name: Cache SPM packages
+        uses: actions/cache@v4
+        with:
+          path: build/DerivedData/SourcePackages
+          key: ${{ matrix.config.runner }}-xcode${{ matrix.config.xcode }}-spm-${{ hashFiles('ios/**/project.yml') }}
+          restore-keys: ${{ matrix.config.runner }}-xcode${{ matrix.config.xcode }}-spm-
+
       # Restore incremental compilation artifacts. COMPILER_INDEX_STORE_ENABLE=NO
       # and INDEX_ENABLE_DATA_STORE=NO (set in the build script) keep intermediates
       # small by skipping the index store (~40% of DerivedData size).
@@ -315,6 +325,13 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
+      - name: Cache SPM packages
+        uses: actions/cache@v4
+        with:
+          path: build/DerivedData/SourcePackages
+          key: macos-15-xcode16-spm-${{ hashFiles('ios/**/project.yml') }}
+          restore-keys: macos-15-xcode16-spm-
+
       - name: Generate Xcode Projects
         run: bash scripts/ios/xcodegen-generate.sh
 
@@ -359,6 +376,13 @@ jobs:
 
       - name: Install XcodeGen
         run: brew install xcodegen
+
+      - name: Cache SPM packages
+        uses: actions/cache@v4
+        with:
+          path: build/DerivedData/SourcePackages
+          key: macos-15-xcode16-spm-${{ hashFiles('ios/**/project.yml') }}
+          restore-keys: macos-15-xcode16-spm-
 
       - name: Generate Xcode Projects
         run: bash scripts/ios/xcodegen-generate.sh

@@ -40,7 +40,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: dev.jasonpearson.ios.StarterApp
         INFOPLIST_FILE: Sources/Info.plist
         CODE_SIGN_STYLE: Automatic
-        GENERATE_INFOPLIST_FILE: NO
+        GENERATE_INFOPLIST_FILE: "NO"
     dependencies:
       - package: Alamofire
       - package: SQLiteData
