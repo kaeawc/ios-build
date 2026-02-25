@@ -21,7 +21,7 @@ jobs:
     name: "ShellCheck"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install shellcheck
         run: sudo apt-get install -y shellcheck
@@ -33,7 +33,7 @@ jobs:
     name: "Validate XML"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install xmlstarlet
         run: sudo apt-get install -y xmlstarlet
@@ -45,7 +45,7 @@ jobs:
     name: "Validate YAML"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install yamllint
         run: sudo apt-get install -y yamllint
@@ -64,10 +64,10 @@ jobs:
     name: "SwiftFormat"
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Cache Homebrew downloads
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/Library/Caches/Homebrew
           key: macos-15-homebrew-swiftformat-${{ hashFiles('Brewfile') }}
@@ -83,10 +83,10 @@ jobs:
     name: "SwiftLint"
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Cache Homebrew downloads
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/Library/Caches/Homebrew
           key: macos-15-homebrew-swiftlint-${{ hashFiles('Brewfile') }}
@@ -106,10 +106,10 @@ jobs:
     name: "Generate Xcode Projects"
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Cache Homebrew downloads
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/Library/Caches/Homebrew
           key: macos-15-homebrew-xcodegen-${{ hashFiles('Brewfile') }}
@@ -121,16 +121,26 @@ jobs:
       - name: Generate Xcode Projects
         run: bash scripts/ios/xcodegen-generate.sh
 
+      - name: Upload Xcode projects
+        uses: actions/upload-artifact@v6
+        with:
+          name: xcode-projects
+          path: ios/StarterApp/StarterApp.xcodeproj
+          retention-days: 1
+
   # ===========================================================================
   # Build for Testing (matrix: macOS 15 + 26)
   #
   # Caching strategy:
-  #   - Homebrew downloads: keyed on Brewfile so a tool upgrade busts it
+  #   - SPM packages: keyed on project.yml to avoid re-cloning dependencies
   #   - DerivedData intermediates: keyed on Xcode version + source/config hashes
   #     so clean rebuilds only happen when sources actually change. On a cache
   #     hit Xcode only recompiles dirty translation units — a 60s build becomes
   #     a few seconds. Restore-key fallback allows partial reuse when some files
   #     changed.
+  #
+  # Downloads the xcode-projects artifact from the xcodegen job so XcodeGen
+  # does not need to be installed or re-run on each runner.
   #
   # Uploads Build/Products (app bundles + .xctestrun) as a short-lived artifact
   # so the simulator-tests matrix can test-without-building on the same binaries.
@@ -147,7 +157,7 @@ jobs:
           - { name: "Xcode 16 (macOS 15)", runner: "macos-15", xcode: "16" }
           - { name: "Xcode 26.2 (macOS 26)", runner: "macos-26", xcode: "26.2" }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Select Xcode ${{ matrix.config.xcode }}
         uses: maxim-lobanov/setup-xcode@v1
@@ -157,21 +167,17 @@ jobs:
       - name: Ensure iOS Simulator runtime
         uses: ./.github/actions/ensure-ios-simulator-runtime
 
-      - name: Cache Homebrew downloads
-        uses: actions/cache@v4
+      - name: Download Xcode projects
+        uses: actions/download-artifact@v7
         with:
-          path: ~/Library/Caches/Homebrew
-          key: ${{ matrix.config.runner }}-homebrew-xcodegen-${{ hashFiles('Brewfile') }}
-          restore-keys: ${{ matrix.config.runner }}-homebrew-xcodegen-
-
-      - name: Install XcodeGen
-        run: brew install xcodegen
+          name: xcode-projects
+          path: ios/StarterApp/StarterApp.xcodeproj
 
       # SPM checkouts are stored under SourcePackages/ when using a custom
       # -derivedDataPath. Caching them avoids re-cloning Alamofire,
       # SQLiteData, and swift-dependencies on every run.
       - name: Cache SPM packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build/DerivedData/SourcePackages
           key: ${{ matrix.config.runner }}-xcode${{ matrix.config.xcode }}-spm-${{ hashFiles('ios/**/project.yml') }}
@@ -181,20 +187,17 @@ jobs:
       # and INDEX_ENABLE_DATA_STORE=NO (set in the build script) keep intermediates
       # small by skipping the index store (~40% of DerivedData size).
       - name: Cache DerivedData intermediates
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build/DerivedData/Build/Intermediates.noindex
           key: ${{ matrix.config.runner }}-xcode${{ matrix.config.xcode }}-intermediates-${{ hashFiles('ios/**/*.swift', 'ios/**/project.yml', 'ios/**/*.xcconfig') }}
           restore-keys: ${{ matrix.config.runner }}-xcode${{ matrix.config.xcode }}-intermediates-
 
-      - name: Generate Xcode Projects
-        run: bash scripts/ios/xcodegen-generate.sh
-
       - name: Build for Testing
         run: bash scripts/ios/xcode-build-for-testing.sh
 
       - name: Upload build products
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: build-for-testing-${{ matrix.config.runner }}
           # Build/Products contains the app bundles and the .xctestrun file.
@@ -204,7 +207,7 @@ jobs:
           retention-days: 1
 
   # ===========================================================================
-  # Simulator Tests (macOS 15 / Xcode 16)
+  # Simulator Tests (macOS 26 / Xcode 26.2)
   # Downloads the build-for-testing artifact and runs test-without-building
   # so no recompilation happens here at all.
   # ===========================================================================
@@ -218,9 +221,9 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - { name: "Xcode 16 (macOS 15)", runner: "macos-15", xcode: "16" }
+          - { name: "Xcode 26.2 (macOS 26)", runner: "macos-26", xcode: "26.2" }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Select Xcode ${{ matrix.config.xcode }}
         uses: maxim-lobanov/setup-xcode@v1
@@ -231,28 +234,19 @@ jobs:
         uses: ./.github/actions/ensure-ios-simulator-runtime
 
       - name: Download build products
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: build-for-testing-${{ matrix.config.runner }}
           path: build/DerivedData/Build/Products/
 
       - name: Boot iOS Simulator
-        run: |
-          DEVICE=$(bash scripts/ios/find-available-iphone.sh)
-          if [[ -z "$DEVICE" ]]; then
-            echo "No available iPhone simulator found"
-            xcrun simctl list devices available
-            exit 1
-          fi
-          echo "Booting simulator: ${DEVICE}"
-          xcrun simctl boot "${DEVICE}"
-          bash scripts/ios/wait-for-simulator-boot.sh "${DEVICE}"
+        run: bash scripts/ios/boot-simulator.sh
 
       - name: Run simulator tests
         run: bash scripts/ios/xcode-test-without-building.sh
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: test-results-${{ matrix.config.runner }}
@@ -260,7 +254,7 @@ jobs:
           retention-days: 7
 
       - name: Upload build logs on failure
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: build-logs-${{ matrix.config.runner }}
@@ -277,39 +271,32 @@ jobs:
     runs-on: macos-15
     needs: [xcodegen]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Select Xcode 16
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: "16"
 
-      - name: Cache Homebrew downloads
-        uses: actions/cache@v4
+      - name: Download Xcode projects
+        uses: actions/download-artifact@v7
         with:
-          path: ~/Library/Caches/Homebrew
-          key: macos-15-homebrew-xcodegen-${{ hashFiles('Brewfile') }}
-          restore-keys: macos-15-homebrew-xcodegen-
-
-      - name: Install XcodeGen
-        run: brew install xcodegen
+          name: xcode-projects
+          path: ios/StarterApp/StarterApp.xcodeproj
 
       - name: Cache SPM packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build/DerivedData/SourcePackages
           key: macos-15-xcode16-spm-${{ hashFiles('ios/**/project.yml') }}
           restore-keys: macos-15-xcode16-spm-
 
       - name: Cache DerivedData intermediates
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build/DerivedData/Build/Intermediates.noindex
           key: macos-15-xcode16-intermediates-${{ hashFiles('ios/**/*.swift', 'ios/**/project.yml', 'ios/**/*.xcconfig') }}
           restore-keys: macos-15-xcode16-intermediates-
-
-      - name: Generate Xcode Projects
-        run: bash scripts/ios/xcodegen-generate.sh
 
       - name: Build
         run: bash scripts/ios/xcode-build.sh
@@ -318,7 +305,7 @@ jobs:
         run: bash scripts/ios/create-ipa.sh build/StarterApp.ipa
 
       - name: Upload IPA
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ipa
           path: build/StarterApp.ipa
@@ -334,7 +321,7 @@ jobs:
     runs-on: macos-15
     if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.base.sha }}
 
@@ -344,7 +331,7 @@ jobs:
           xcode-version: "16"
 
       - name: Cache Homebrew downloads
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/Library/Caches/Homebrew
           key: macos-15-homebrew-xcodegen-${{ hashFiles('Brewfile') }}
@@ -354,14 +341,14 @@ jobs:
         run: brew install xcodegen
 
       - name: Cache SPM packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build/DerivedData/SourcePackages
           key: macos-15-xcode16-spm-${{ hashFiles('ios/**/project.yml') }}
           restore-keys: macos-15-xcode16-spm-
 
       - name: Cache DerivedData intermediates
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: build/DerivedData/Build/Intermediates.noindex
           key: macos-15-xcode16-intermediates-${{ hashFiles('ios/**/*.swift', 'ios/**/project.yml', 'ios/**/*.xcconfig') }}
@@ -377,7 +364,7 @@ jobs:
         run: bash scripts/ios/create-ipa.sh build/StarterApp-base.ipa
 
       - name: Upload Base IPA
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: base-ipa
           path: build/StarterApp-base.ipa
@@ -395,16 +382,16 @@ jobs:
     if: github.event_name == 'pull_request'
     needs: [build-ipa, build-base-ipa]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download current IPA
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: ipa
           path: build/
 
       - name: Download base IPA
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: base-ipa
           path: build/
@@ -413,7 +400,7 @@ jobs:
         run: bash scripts/ios/diff-ipa.sh build/StarterApp-base.ipa build/StarterApp.ipa build/ipa-diff.md
 
       - name: Upload diff report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: ipa-diff
@@ -421,14 +408,14 @@ jobs:
           retention-days: 7
 
       - name: Find existing PR comment
-        uses: peter-evans/find-comment@v3
+        uses: peter-evans/find-comment@v4
         id: find-comment
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body-includes: "## IPA Diff"
 
       - name: Post diff to PR
-        uses: peter-evans/create-or-update-comment@v4
+        uses: peter-evans/create-or-update-comment@v5
         with:
           comment-id: ${{ steps.find-comment.outputs.comment-id }}
           issue-number: ${{ github.event.pull_request.number }}
