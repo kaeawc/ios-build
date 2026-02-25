@@ -1,0 +1,8 @@
+extends: default
+rules:
+  # GitHub Actions uses `on:` as a mapping key; don't flag it as a truthy value.
+  truthy:
+    allowed-values: ['true', 'false']
+    check-keys: false
+  line-length:
+    max: 150

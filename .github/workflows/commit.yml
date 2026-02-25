@@ -41,6 +41,18 @@ jobs:
       - name: Validate XML files
         run: bash scripts/xml/validate_xml.sh
 
+  validate-yaml:
+    name: "Validate YAML"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install yamllint
+        run: sudo apt-get install -y yamllint
+
+      - name: Validate YAML files
+        run: bash scripts/yaml/validate_yaml.sh
+
   # ===========================================================================
   # Swift Code Quality (macOS)
   # These run on macos-15 only — formatting rules are Xcode-version-agnostic.

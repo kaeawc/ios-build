@@ -17,11 +17,13 @@ start_time=$(bash "$(pwd)/scripts/utils/get_timestamp.sh")
 # Determine parallel job count (cross-platform)
 parallel_jobs=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 
-# Find shell scripts tracked by git and validate in parallel
+# Find shell scripts (by extension) and git hooks (by path) tracked by git,
+# then validate in parallel. Hooks have no .sh extension so they need a
+# separate match on the .githooks/ directory.
 # shellcheck disable=SC2016
 errors=$(git ls-files --cached --others --exclude-standard -z |
-  grep -z '\.sh$' |
-  xargs -0 -n 1 -P "$parallel_jobs" bash -c 'shellcheck "$0"' 2>&1)
+  grep -zE '(\.sh$|\.githooks/)' |
+  xargs -0 -n 1 -P "$parallel_jobs" bash -c 'shellcheck --shell=bash "$0"' 2>&1)
 
 # Calculate total elapsed time
 end_time=$(bash "$(pwd)/scripts/utils/get_timestamp.sh")
