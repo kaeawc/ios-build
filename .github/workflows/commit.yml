@@ -332,6 +332,13 @@ jobs:
           key: macos-15-xcode16-spm-${{ hashFiles('ios/**/project.yml') }}
           restore-keys: macos-15-xcode16-spm-
 
+      - name: Cache DerivedData intermediates
+        uses: actions/cache@v4
+        with:
+          path: build/DerivedData/Build/Intermediates.noindex
+          key: macos-15-xcode16-release-intermediates-${{ hashFiles('ios/**/*.swift', 'ios/**/project.yml', 'ios/**/*.xcconfig') }}
+          restore-keys: macos-15-xcode16-release-intermediates-
+
       - name: Generate Xcode Projects
         run: bash scripts/ios/xcodegen-generate.sh
 
@@ -383,6 +390,13 @@ jobs:
           path: build/DerivedData/SourcePackages
           key: macos-15-xcode16-spm-${{ hashFiles('ios/**/project.yml') }}
           restore-keys: macos-15-xcode16-spm-
+
+      - name: Cache DerivedData intermediates
+        uses: actions/cache@v4
+        with:
+          path: build/DerivedData/Build/Intermediates.noindex
+          key: macos-15-xcode16-release-intermediates-${{ hashFiles('ios/**/*.swift', 'ios/**/project.yml', 'ios/**/*.xcconfig') }}
+          restore-keys: macos-15-xcode16-release-intermediates-
 
       - name: Generate Xcode Projects
         run: bash scripts/ios/xcodegen-generate.sh

@@ -17,13 +17,20 @@ start_time=$(bash "$(pwd)/scripts/utils/get_timestamp.sh")
 # Determine parallel job count (cross-platform)
 parallel_jobs=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 
-# Find shell scripts (by extension) and git hooks (by path) tracked by git,
-# then validate in parallel. Hooks have no .sh extension so they need a
-# separate match on the .githooks/ directory.
+# When ONLY_TOUCHED_FILES=true (e.g. pre-commit hook) only check staged files;
+# otherwise check all tracked files. Hooks have no .sh extension so they need
+# a separate match on the .githooks/ directory.
+# Null bytes cannot survive in a bash variable, so pipe directly to xargs.
 # shellcheck disable=SC2016
-errors=$(git ls-files --cached --others --exclude-standard -z |
-  grep -zE '(\.sh$|\.githooks/)' |
-  xargs -0 -n 1 -P "$parallel_jobs" bash -c 'shellcheck --shell=bash "$0"' 2>&1)
+if [[ "${ONLY_TOUCHED_FILES:-false}" == "true" ]]; then
+  errors=$(git diff --cached --name-only --diff-filter=d -z |
+    grep -zE '(\.sh$|\.githooks/)' |
+    xargs -0 -n 1 -P "$parallel_jobs" bash -c 'shellcheck --shell=bash "$0"' 2>&1)
+else
+  errors=$(git ls-files --cached --others --exclude-standard -z |
+    grep -zE '(\.sh$|\.githooks/)' |
+    xargs -0 -n 1 -P "$parallel_jobs" bash -c 'shellcheck --shell=bash "$0"' 2>&1)
+fi
 
 # Calculate total elapsed time
 end_time=$(bash "$(pwd)/scripts/utils/get_timestamp.sh")

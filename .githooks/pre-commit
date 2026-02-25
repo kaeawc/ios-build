@@ -10,7 +10,7 @@ echo "Running pre-commit hooks..."
 # Validate shell scripts with shellcheck
 if command -v shellcheck &>/dev/null; then
   echo "→ Checking shell scripts..."
-  bash "$PROJECT_ROOT/scripts/shellcheck/validate_shell_scripts.sh"
+  ONLY_TOUCHED_FILES=true bash "$PROJECT_ROOT/scripts/shellcheck/validate_shell_scripts.sh"
 else
   echo "⚠ shellcheck not installed, skipping shell script validation"
 fi
