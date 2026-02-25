@@ -309,6 +309,7 @@ jobs:
         with:
           name: ipa
           path: build/StarterApp.ipa
+          if-no-files-found: error
           retention-days: 7
 
   # ===========================================================================
@@ -368,6 +369,7 @@ jobs:
         with:
           name: base-ipa
           path: build/StarterApp-base.ipa
+          if-no-files-found: error
           retention-days: 7
 
   # ===========================================================================

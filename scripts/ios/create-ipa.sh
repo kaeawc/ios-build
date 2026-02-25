@@ -2,12 +2,14 @@
 #
 # Usage: create-ipa.sh <output_path>
 #
-# Packages the built Release .app bundle into an IPA file.
+# Packages the built Debug .app bundle into an IPA file.
 
 PROJECT_ROOT="$(pwd)"
 DERIVED_DATA_PATH="${DERIVED_DATA_PATH:-$PROJECT_ROOT/build/DerivedData}"
 
 output_path="${1:?Usage: create-ipa.sh <output_path>}"
+# Resolve to absolute path so it stays valid after cd-ing into the temp dir
+[[ "$output_path" == /* ]] || output_path="$PROJECT_ROOT/$output_path"
 
 # Debug builds land in Debug-iphonesimulator/
 app_bundle=$(find "$DERIVED_DATA_PATH/Build/Products/Debug-iphonesimulator" \
