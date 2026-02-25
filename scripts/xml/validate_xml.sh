@@ -41,7 +41,7 @@ export XML_CMD
 # shellcheck disable=SC2016
 errors=$(printf '%s\n' "${xml_files[@]}" \
   | xargs -n 1 -P "$parallel_jobs" bash -c \
-    'out=$(sed "/<!DOCTYPE/d" "$0" | "$XML_CMD" val -w -e - 2>&1); [ -n "$out" ] && echo "$0: $out"')
+    'out=$(sed "/<!DOCTYPE/d" "$0" | "$XML_CMD" val -w -q -e - 2>&1); rc=$?; [ $rc -ne 0 ] && echo "$0: $out"')
 
 # Calculate total elapsed time
 end_time=$(bash "$(pwd)/scripts/utils/get_timestamp.sh")
