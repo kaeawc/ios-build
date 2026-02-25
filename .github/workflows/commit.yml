@@ -145,7 +145,7 @@ jobs:
       matrix:
         config:
           - { name: "Xcode 16 (macOS 15)", runner: "macos-15", xcode: "16" }
-          - { name: "Xcode 26 (macOS 26)", runner: "macos-26", xcode: "26" }
+          - { name: "Xcode 26.2 (macOS 26)", runner: "macos-26", xcode: "26.2" }
     steps:
       - uses: actions/checkout@v4
 
