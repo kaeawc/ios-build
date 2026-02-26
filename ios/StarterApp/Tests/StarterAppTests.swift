@@ -64,4 +64,36 @@ final class StarterAppTests: XCTestCase {
             XCTAssertTrue(results[0].isReachable)
         }
     }
+
+    // MARK: - Timer Tests
+
+    func testFakeTimerRecordsSleepDuration() async throws {
+        let timer = FakeTimer()
+        try await timer.sleep(for: .seconds(5))
+        XCTAssertEqual(timer.sleepCallCount, 1)
+        XCTAssertEqual(timer.sleepDurations, [.seconds(5)])
+    }
+
+    func testFakeTimerCanThrow() async {
+        let timer = FakeTimer()
+        timer.shouldThrow = CancellationError()
+        do {
+            try await timer.sleep(for: .seconds(10))
+            XCTFail("Expected throw")
+        } catch {
+            XCTAssertEqual(timer.sleepCallCount, 1)
+        }
+    }
+
+    func testTimerProviderDependencyCanBeOverridden() async throws {
+        let timer = FakeTimer()
+        try await withDependencies {
+            $0.timerProvider = timer
+        } operation: {
+            @Dependency(\.timerProvider) var provider
+            try await provider.sleep(for: .seconds(999))
+            XCTAssertEqual(timer.sleepCallCount, 1)
+            XCTAssertEqual(timer.sleepDurations, [.seconds(999)])
+        }
+    }
 }
