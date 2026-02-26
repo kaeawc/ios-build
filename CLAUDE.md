@@ -79,7 +79,9 @@ Jobs run on every push/PR:
 **Caching strategy**: All three build jobs (`build-for-testing`, `build-ipa`, `build-base-ipa`) cache:
 - Homebrew downloads — keyed on `Brewfile`
 - SPM packages (`build/DerivedData/SourcePackages`) — keyed on `project.yml`
-- DerivedData intermediates (`build/DerivedData/Build/Intermediates.noindex`) — keyed on Xcode version + source/config hashes; `build-for-testing` and `build-ipa` share the same key on macOS 15
+- DerivedData intermediates (`build/DerivedData/Build/Intermediates.noindex`) — keyed on Xcode version + source/config hashes; `build-for-testing` and `build-ipa` share the same Debug key on macOS 15 (`macos-15-xcode16-intermediates-*`)
+
+**XcodeGen artifact**: The `xcodegen` job uploads the generated `StarterApp.xcodeproj` as a short-lived artifact. `build-for-testing` and `build-ipa` download it instead of re-running XcodeGen. `build-base-ipa` generates its own (checks out a different commit).
 
 ### YAML Linting
 `.yamllint.yml` extends yamllint's default config with:
