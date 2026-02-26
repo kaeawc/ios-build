@@ -242,8 +242,21 @@ jobs:
       - name: Boot iOS Simulator
         run: bash scripts/ios/boot-simulator.sh
 
+      - name: Start simulator log stream
+        run: |
+          mkdir -p build
+          xcrun simctl spawn booted log stream \
+            --level debug --style compact --color none \
+            --predicate 'subsystem BEGINSWITH "dev.jasonpearson.ios"' \
+            > build/simulator.log 2>&1 &
+          echo "LOG_STREAM_PID=$!" >> "$GITHUB_ENV"
+
       - name: Run simulator tests
         run: bash scripts/ios/xcode-test-without-building.sh
+
+      - name: Stop simulator log stream
+        if: always()
+        run: kill "$LOG_STREAM_PID" 2>/dev/null || true
 
       - name: Upload test results
         uses: actions/upload-artifact@v6
@@ -251,6 +264,28 @@ jobs:
         with:
           name: test-results-${{ matrix.config.runner }}
           path: build/test.xcresult
+          retention-days: 7
+
+      - name: Upload simulator logs on failure
+        uses: actions/upload-artifact@v6
+        if: failure()
+        with:
+          name: simulator-logs-${{ matrix.config.runner }}
+          path: build/simulator.log
+          retention-days: 7
+
+      - name: Collect crash logs on failure
+        if: failure()
+        run: |
+          mkdir -p build/crash-logs
+          cp ~/Library/Logs/DiagnosticReports/StarterApp* build/crash-logs/ 2>/dev/null || true
+
+      - name: Upload crash logs on failure
+        uses: actions/upload-artifact@v6
+        if: failure()
+        with:
+          name: crash-logs-${{ matrix.config.runner }}
+          path: build/crash-logs/
           retention-days: 7
 
       - name: Upload build logs on failure
