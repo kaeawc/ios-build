@@ -5,18 +5,63 @@ import XCTest
 @testable import StarterApp
 
 final class StarterAppTests: XCTestCase {
-    func testExample() {
-        // Basic test to verify the module loads correctly.
-        XCTAssertTrue(true)
+    // MARK: - Session Tests
+
+    func testSessionInsert() async throws {
+        let queue = try DatabaseQueue.makeInMemoryDatabase()
+        let session = Session(id: UUID(), launchedAt: Date())
+        try await queue.write { database in
+            try Session.insert { session }.execute(database)
+        }
+        let count = try await queue.read { try Session.count().fetchOne($0) }
+        XCTAssertEqual(count, 1)
     }
 
-    func testContentViewCreation() throws {
-        // Verify ContentView can be instantiated with an in-memory test database.
-        try withDependencies {
+    func testMultipleSessionInserts() async throws {
+        let queue = try DatabaseQueue.makeInMemoryDatabase()
+        for _ in 0 ..< 3 {
+            try await queue.write { database in
+                try Session.insert { Session(id: UUID(), launchedAt: Date()) }.execute(database)
+            }
+        }
+        let count = try await queue.read { try Session.count().fetchOne($0) }
+        XCTAssertEqual(count, 3)
+    }
+
+    // MARK: - Network Tests
+
+    func testFakeNetworkClientReturnsConfiguredResults() async {
+        let expected = [
+            NetworkCheckResult(host: "8.8.8.8", isReachable: true, statusCode: nil),
+            NetworkCheckResult(host: "example.com", isReachable: true, statusCode: 200),
+        ]
+        let client = FakeNetworkClient(results: expected)
+        let actual = await client.checkAll()
+        XCTAssertEqual(actual, expected)
+    }
+
+    func testFakeNetworkClientOfflineResults() async {
+        let client = FakeNetworkClient(results: [
+            NetworkCheckResult(host: "8.8.8.8", isReachable: false, statusCode: nil),
+            NetworkCheckResult(host: "example.com", isReachable: false, statusCode: nil),
+        ])
+        let results = await client.checkAll()
+        XCTAssertFalse(results.allSatisfy(\.isReachable))
+    }
+
+    func testNetworkClientDependencyCanBeOverridden() async throws {
+        let fake = FakeNetworkClient(results: [
+            NetworkCheckResult(host: "8.8.8.8", isReachable: true, statusCode: nil),
+        ])
+        try await withDependencies {
+            $0.networkClient = fake
             $0.defaultDatabase = try DatabaseQueue()
         } operation: {
-            let view = ContentView(networkState: .idle)
-            XCTAssertNotNil(view)
+            @Dependency(\.networkClient) var client
+            let results = await client.checkAll()
+            XCTAssertEqual(results.count, 1)
+            XCTAssertEqual(results[0].host, "8.8.8.8")
+            XCTAssertTrue(results[0].isReachable)
         }
     }
 }

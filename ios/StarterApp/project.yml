@@ -45,6 +45,8 @@ targets:
       - package: Alamofire
       - package: SQLiteData
         product: SQLiteData
+      - package: Dependencies
+        product: Dependencies
 
   StarterAppTests:
     type: bundle.unit-test

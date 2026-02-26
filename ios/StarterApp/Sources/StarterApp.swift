@@ -1,3 +1,4 @@
+import Dependencies
 import SQLiteData
 import SwiftUI
 
@@ -5,6 +6,8 @@ import SwiftUI
 struct StarterApp: App {
     private let database: DatabaseQueue
     @State private var networkState: NetworkState = .idle
+    @Dependency(\.date) var date
+    @Dependency(\.networkClient) var networkClient
 
     init() {
         do {
@@ -24,7 +27,7 @@ struct StarterApp: App {
                     do {
                         try await database.write { db in
                             try Session.insert {
-                                Session(id: UUID(), launchedAt: Date())
+                                Session(id: UUID(), launchedAt: date.now)
                             }
                             .execute(db)
                         }
@@ -34,7 +37,7 @@ struct StarterApp: App {
                     withAnimation {
                         networkState = .checking
                     }
-                    let results = await NetworkChecker.checkAll()
+                    let results = await networkClient.checkAll()
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                         networkState = .complete(results)
                     }
