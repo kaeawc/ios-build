@@ -1,0 +1,33 @@
+name: app-background-foreground
+description: Verify StarterApp survives background and foreground transitions
+platform: ios
+steps:
+  - tool: launchApp
+    appId: dev.jasonpearson.ios.StarterApp
+    clearAppData: true
+    label: Launch StarterApp with clean state
+
+  - tool: observe
+    waitFor:
+      text: Sessions
+      timeout: 15000
+    label: Wait for main screen
+
+  - tool: pressButton
+    button: home
+    label: Background the app
+
+  - tool: launchApp
+    appId: dev.jasonpearson.ios.StarterApp
+    clearAppData: false
+    label: Foreground the app
+
+  - tool: observe
+    waitFor:
+      text: Sessions
+      timeout: 10000
+    label: Verify app is usable after foreground
+
+  - tool: terminateApp
+    appId: dev.jasonpearson.ios.StarterApp
+    label: Clean up

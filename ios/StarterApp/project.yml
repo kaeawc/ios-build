@@ -19,6 +19,8 @@ packages:
   Dependencies:
     url: https://github.com/pointfreeco/swift-dependencies
     from: "1.0.0"
+  XCTestRunner:
+    path: ../../libs/spm/XCTestRunner
 
 settings:
   base:
@@ -53,6 +55,8 @@ targets:
     platform: iOS
     sources:
       - path: Tests
+        excludes:
+          - AutoMobile/**
     dependencies:
       - target: StarterApp
       - package: Dependencies
@@ -61,12 +65,27 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.jasonpearson.ios.StarterAppTests
 
+  StarterAppAutoMobileTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests/AutoMobile
+    dependencies:
+      - target: StarterApp
+      - package: XCTestRunner
+        product: XCTestRunner
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.jasonpearson.ios.StarterAppAutoMobileTests
+
 schemes:
   StarterApp:
     build:
       targets:
         StarterApp: all
         StarterAppTests:
+          - test
+        StarterAppAutoMobileTests:
           - test
     run:
       config: Debug
@@ -76,6 +95,7 @@ schemes:
       enableCodeCoverage: false
       targets:
         - name: StarterAppTests
+        - name: StarterAppAutoMobileTests
     profile:
       config: Release
     analyze:
