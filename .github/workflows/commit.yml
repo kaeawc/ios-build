@@ -164,9 +164,6 @@ jobs:
         with:
           xcode-version: ${{ matrix.config.xcode }}
 
-      - name: Ensure iOS Simulator runtime
-        uses: ./.github/actions/ensure-ios-simulator-runtime
-
       - name: Download Xcode projects
         uses: actions/download-artifact@v7
         with:
