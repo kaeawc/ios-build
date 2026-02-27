@@ -1,0 +1,18 @@
+name: launch-starter-app
+description: Launch the StarterApp and verify the main screen loads
+platform: ios
+steps:
+  - tool: launchApp
+    appId: dev.jasonpearson.ios.StarterApp
+    clearAppData: true
+    label: Launch StarterApp with clean state
+
+  - tool: observe
+    waitFor:
+      text: Sessions
+      timeout: 15000
+    label: Wait for main screen to appear
+
+  - tool: terminateApp
+    appId: dev.jasonpearson.ios.StarterApp
+    label: Clean up

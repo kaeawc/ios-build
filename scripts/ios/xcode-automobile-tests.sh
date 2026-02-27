@@ -2,7 +2,7 @@
 
 PROJECT_ROOT="$(pwd)"
 PRODUCTS_PATH="${PRODUCTS_PATH:-$PROJECT_ROOT/build/DerivedData/Build/Products}"
-RESULT_BUNDLE_PATH="${RESULT_BUNDLE_PATH:-$PROJECT_ROOT/build/test.xcresult}"
+RESULT_BUNDLE_PATH="${RESULT_BUNDLE_PATH:-$PROJECT_ROOT/build/automobile-tests.xcresult}"
 
 start_time=$(date +%s)
 
@@ -35,17 +35,16 @@ xcodebuild test-without-building \
   -xctestrun "$xctestrun_file" \
   -destination "platform=iOS Simulator,id=$booted_udid" \
   -resultBundlePath "$RESULT_BUNDLE_PATH" \
-  -skip-testing:StarterAppAutoMobileTests \
+  -only-testing:StarterAppAutoMobileTests \
   -enableCodeCoverage NO \
-  -parallel-testing-enabled YES \
   -skipMacroValidation
 
 test_exit_code=$?
 elapsed=$(($(date +%s) - start_time))
 
 if [[ $test_exit_code -ne 0 ]]; then
-  echo "Tests failed in ${elapsed}s"
+  echo "AutoMobile tests failed in ${elapsed}s"
   exit $test_exit_code
 fi
 
-echo "Tests passed in ${elapsed}s"
+echo "AutoMobile tests passed in ${elapsed}s"
