@@ -49,6 +49,7 @@ enum AutoMobileDaemonSocket {
 enum SimulatorDetection {
     /// Check if any iOS simulator is currently booted (fast check)
     static func hasBootedSimulator() -> Bool {
+        #if os(macOS)
         PerfTimer.log("hasBootedSimulator: starting xcrun simctl")
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
@@ -87,6 +88,10 @@ enum SimulatorDetection {
             PerfTimer.log("hasBootedSimulator: ERROR - \(error)")
             return false
         }
+        #else
+        // Running inside the iOS Simulator — no need to query simctl
+        return true
+        #endif
     }
 }
 
@@ -130,6 +135,7 @@ public enum DaemonManager {
     }
 
     public static func startDaemon(repoRoot _: String? = nil) -> Bool {
+        #if os(macOS)
         PerfTimer.log("startDaemon: searching for auto-mobile executable")
         guard let autoMobilePath = findExecutable("auto-mobile") else {
             PerfTimer.log("startDaemon: ERROR - auto-mobile not found in PATH")
@@ -165,6 +171,11 @@ public enum DaemonManager {
             PerfTimer.log("startDaemon: ERROR - failed to run process: \(error)")
             return false
         }
+        #else
+        // Cannot spawn processes from the iOS sandbox
+        PerfTimer.log("startDaemon: not supported on iOS — start the daemon from macOS")
+        return false
+        #endif
     }
 
     public static func ensureDaemonRunning(repoRoot: String? = nil, timeoutSeconds: TimeInterval = 15) -> Bool {
@@ -228,6 +239,7 @@ public enum DaemonManager {
                 return path
             }
         }
+        #if os(macOS)
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/which")
         process.arguments = [name]
@@ -246,6 +258,7 @@ public enum DaemonManager {
                 }
             }
         } catch {}
+        #endif
         return nil
     }
 

@@ -389,6 +389,7 @@ open class AutoMobileTestCase: XCTestCase {
     }
 
     private func startDaemon() throws {
+        #if os(macOS)
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         process.arguments = ["auto-mobile", "--daemon", "start"]
@@ -415,9 +416,16 @@ open class AutoMobileTestCase: XCTestCase {
                 "Failed to start daemon: \(message.isEmpty ? "exit code \(process.terminationStatus)" : message)"
             )
         }
+        #else
+        // Cannot spawn processes from the iOS sandbox — start the daemon from macOS before running tests
+        throw AutoMobileTestCaseError.devicePoolUnavailable(
+            "Cannot start daemon from iOS: run 'auto-mobile --daemon start' on macOS before running tests"
+        )
+        #endif
     }
 
     func hasBootedSimulator() -> Bool {
+        #if os(macOS)
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
         process.arguments = ["simctl", "list", "devices", "--json"]
@@ -460,6 +468,10 @@ open class AutoMobileTestCase: XCTestCase {
         }
 
         return false
+        #else
+        // Running inside the iOS Simulator — a booted simulator is implicit
+        return true
+        #endif
     }
 
     private enum TimingOrderingStrategy: String {
