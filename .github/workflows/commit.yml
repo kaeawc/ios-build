@@ -342,11 +342,9 @@ jobs:
           echo "LOG_STREAM_PID=$!" >> "$GITHUB_ENV"
 
       - name: Start AutoMobile daemon
-        run: |
-          auto-mobile --daemon start &
-          echo "AUTOMOBILE_DAEMON_PID=$!" >> "$GITHUB_ENV"
+        run: auto-mobile --daemon start
 
-      - name: Wait for daemon and register simulator
+      - name: Pre-install CtrlProxy iOS
         run: auto-mobile --cli observe --platform ios
 
       - name: Run AutoMobile tests
@@ -354,7 +352,7 @@ jobs:
 
       - name: Stop AutoMobile daemon
         if: always()
-        run: kill "$AUTOMOBILE_DAEMON_PID" 2>/dev/null || true
+        run: auto-mobile --daemon stop 2>/dev/null || true
 
       - name: Stop simulator log stream
         if: always()
