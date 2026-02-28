@@ -318,7 +318,17 @@ jobs:
         uses: oven-sh/setup-bun@v2
 
       - name: Install auto-mobile CLI
-        run: bun install -g @kaeawc/auto-mobile
+        id: install-auto-mobile
+        run: |
+          bun install -g @kaeawc/auto-mobile
+          version=$(bun pm ls -g 2>/dev/null | grep -oE '@kaeawc/auto-mobile@[0-9.]+' | head -1 | cut -d@ -f3)
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Cache CtrlProxy iOS
+        uses: actions/cache@v5
+        with:
+          path: ~/.automobile
+          key: macos-26-ctrl-proxy-ios-${{ steps.install-auto-mobile.outputs.version }}
 
       - name: Ensure iOS Simulator runtime
         uses: ./.github/actions/ensure-ios-simulator-runtime
@@ -345,7 +355,19 @@ jobs:
         run: auto-mobile --daemon start
 
       - name: Pre-install CtrlProxy iOS
-        run: auto-mobile --cli observe --platform ios
+        run: |
+          for attempt in 1 2 3; do
+            echo "Attempt ${attempt} of 3..."
+            if auto-mobile --cli observe --platform ios; then
+              break
+            fi
+            if [ "${attempt}" -lt 3 ]; then
+              sleep 30
+            else
+              echo "All attempts to pre-install CtrlProxy iOS failed" >&2
+              exit 1
+            fi
+          done
 
       - name: Run AutoMobile tests
         run: bash scripts/ios/xcode-automobile-tests.sh
