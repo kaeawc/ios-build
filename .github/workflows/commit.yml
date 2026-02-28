@@ -321,7 +321,10 @@ jobs:
         id: install-auto-mobile
         run: |
           bun install -g @kaeawc/auto-mobile
-          version=$(bun pm ls -g 2>/dev/null | grep -oE '@kaeawc/auto-mobile@[0-9.]+' | head -1 | cut -d@ -f3)
+          version=$(bun pm ls -g 2>/dev/null | grep 'auto-mobile' | grep -oE '@[0-9][^ ]*' | head -1 | cut -c2-)
+          if [ -z "${version}" ]; then
+            version="unknown-$(date +%Y%m%d)"
+          fi
           echo "version=${version}" >> "$GITHUB_OUTPUT"
 
       - name: Cache CtrlProxy iOS
