@@ -70,6 +70,10 @@ targets:
     platform: iOS
     sources:
       - path: Tests/AutoMobile
+        excludes:
+          - "test-plans/**"
+    resources:
+      - path: Tests/AutoMobile/test-plans
     dependencies:
       - target: StarterApp
       - package: XCTestRunner
