@@ -1,4 +1,5 @@
-name: launch-starter-app
+# yaml-language-server: $schema=https://unpkg.com/@kaeawc/auto-mobile/schemas/test-plan.schema.json
+name: launch-app
 description: Launch the StarterApp and verify the main screen loads
 platform: ios
 steps:

@@ -46,3 +46,6 @@ fastlane/test_output
 
 # Test result bundles
 *.xcresult
+
+# AutoMobile schema (consumed from @kaeawc/auto-mobile npm package, not committed)
+schemas/
