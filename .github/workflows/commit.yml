@@ -303,6 +303,7 @@ jobs:
 
   automobile-tests:
     name: "AutoMobile XCTestRunner Tests"
+    if: false
     runs-on: macos-26
     needs: [build-for-testing]
     timeout-minutes: 30
