@@ -6,12 +6,9 @@ import Foundation
 import Persistence
 import Testing
 
-/// Each test gets a fresh in-memory database (`AppDatabase.testValue`). Network access fails the
-/// test unless it is overridden, so the suite starts every test online.
-@Suite(.dependencies {
-    $0.connectivity = .online
-    $0.date.now = Date(timeIntervalSince1970: 1_234_567_890)
-})
+/// Each test gets a fresh in-memory database (`AppDatabase.testValue`) and a fixed clock. Network
+/// access fails a test unless it overrides `\.connectivity` with its own trait.
+@Suite(.dependency(\.date.now, Date(timeIntervalSince1970: 1_234_567_890)))
 struct AppModelTests {
     @Test
     func `records a launch at the current date`() async throws {
@@ -39,26 +36,16 @@ struct AppModelTests {
         #expect(model.history.total == 0)
     }
 
-    @Test
-    func `checks every host and keeps their order`() async throws {
-        let reachable = try #require(URL(string: "https://up.test"))
-        let unreachable = try #require(URL(string: "https://down.test"))
-        let model = withDependencies {
-            $0.connectivity.check = { url in
-                url == unreachable
-                    ? HostCheck(url: url, outcome: .unreachable(reason: "Timed out"))
-                    : HostCheck(url: url, outcome: .reachable(statusCode: 200))
-            }
-        } operation: {
-            AppModel(hosts: [unreachable, reachable])
-        }
+    @Test(.dependency(\.connectivity, .oneHostDown))
+    func `checks every host and keeps their order`() async {
+        let model = AppModel(hosts: [.downHost, .upHost])
         #expect(model.checkState == .idle)
 
         await model.runChecks()
 
         #expect(model.checkState == .finished([
-            HostCheck(url: unreachable, outcome: .unreachable(reason: "Timed out")),
-            HostCheck(url: reachable, outcome: .reachable(statusCode: 200)),
+            HostCheck(url: .downHost, outcome: .unreachable(reason: "Timed out")),
+            HostCheck(url: .upHost, outcome: .reachable(statusCode: 200)),
         ]))
     }
 
@@ -71,6 +58,23 @@ struct AppModelTests {
 
         #expect(model.pathStatus == .offline)
     }
+}
+
+extension URL {
+    fileprivate static let upHost = URL(string: "https://up.test")!
+    fileprivate static let downHost = URL(string: "https://down.test")!
+}
+
+extension ConnectivityClient {
+    /// Online, but `URL.downHost` times out while every other host answers `200`.
+    fileprivate static let oneHostDown = ConnectivityClient(
+        pathUpdates: { AsyncStream { $0.finish() } },
+        check: { url in
+            url == .downHost
+                ? HostCheck(url: url, outcome: .unreachable(reason: "Timed out"))
+                : HostCheck(url: url, outcome: .reachable(statusCode: 200))
+        },
+    )
 }
 
 /// Polls `condition` until it holds, recording an issue if it doesn't within `timeout`.

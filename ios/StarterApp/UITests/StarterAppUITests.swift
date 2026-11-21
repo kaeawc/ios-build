@@ -8,8 +8,9 @@ final class StarterAppUITests: XCTestCase {
     func testShowsNetworkStatusOnLaunch() {
         let app = launchApp()
 
-        XCTAssertTrue(app.staticTexts["Online"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["HTTP 200"].firstMatch.waitForExistence(timeout: 10))
+        // Match by substring: tvOS merges a LabeledContent row into one element ("Connection, Online").
+        XCTAssertTrue(app.staticTexts.firstMatch(labelContaining: "Online").waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts.firstMatch(labelContaining: "HTTP 200").waitForExistence(timeout: 10))
     }
 
     #if !os(tvOS) // tvOS has no touch input; drive it with XCUIRemote instead.
@@ -26,7 +27,8 @@ final class StarterAppUITests: XCTestCase {
 
             let total = app.staticTexts["history.total"]
             XCTAssertTrue(total.waitForExistence(timeout: 10))
-            XCTAssertEqual(total.label, "1")
+            // The label is "1", or "Total launches, 1" where the row is merged into one element.
+            XCTAssertEqual(total.label.components(separatedBy: ", ").last, "1")
         }
     #endif
 
@@ -37,5 +39,12 @@ final class StarterAppUITests: XCTestCase {
         app.launchArguments = ["--ui-testing"]
         app.launch()
         return app
+    }
+}
+
+extension XCUIElementQuery {
+    /// The first element whose label contains `text`.
+    fileprivate func firstMatch(labelContaining text: String) -> XCUIElement {
+        matching(NSPredicate(format: "label CONTAINS %@", text)).firstMatch
     }
 }
