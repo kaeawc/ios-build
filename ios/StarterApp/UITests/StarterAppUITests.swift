@@ -16,11 +16,14 @@ final class StarterAppUITests: XCTestCase {
 
     #if !os(tvOS) // tvOS has no touch input; drive it with XCUIRemote instead.
         @MainActor
-        func testRecordsTheLaunchInHistory() {
+        func testRecordsTheLaunchInHistory() throws {
             let app = launchApp()
 
-            let historyTab = app.buttons["Launch History"]
-            XCTAssertTrue(historyTab.waitForExistence(timeout: 10))
+            // On iPad, `.sidebarAdaptable` exposes the tab twice (tab bar and collapsed sidebar);
+            // tap whichever is on screen.
+            let historyTabs = app.buttons.matching(identifier: "Launch History")
+            XCTAssertTrue(historyTabs.firstMatch.waitForExistence(timeout: 10))
+            let historyTab = try XCTUnwrap(historyTabs.allElementsBoundByIndex.first(where: \.isHittable))
             historyTab.tap()
 
             let total = app.staticTexts["history.total"]
