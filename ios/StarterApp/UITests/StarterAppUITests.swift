@@ -19,8 +19,8 @@ final class StarterAppUITests: XCTestCase {
         func testRecordsTheLaunchInHistory() throws {
             let app = launchApp()
 
-            // On iPad, `.sidebarAdaptable` exposes the tab twice (tab bar and collapsed sidebar);
-            // tap whichever is on screen.
+            // iPad (`.sidebarAdaptable`) and visionOS expose the tab button twice (e.g. tab bar and
+            // collapsed sidebar); tap whichever is on screen.
             let historyTabs = app.buttons.matching(identifier: "Launch History")
             XCTAssertTrue(historyTabs.firstMatch.waitForExistence(timeout: 10))
             let historyTab = try XCTUnwrap(historyTabs.allElementsBoundByIndex.first(where: \.isHittable))
