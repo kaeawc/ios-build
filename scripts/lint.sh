@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Runs every check the CI "Lint" job runs. Install the tools first with `mise install`
-# (versions are pinned in mise.toml), plus `brew install yamllint xmlstarlet` on macOS.
+# (versions are pinned in mise.toml), plus `brew install yamllint` on macOS.
 #
 # Usage: bash scripts/lint.sh
 

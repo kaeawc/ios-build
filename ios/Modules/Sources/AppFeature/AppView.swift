@@ -1,3 +1,4 @@
+import Connectivity
 import Dependencies
 import SwiftUI
 

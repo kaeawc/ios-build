@@ -34,7 +34,7 @@ deliberately small: it exists to show how the pieces fit together, and you'll re
 3. Install the tools and the git hooks:
 
    ```sh
-   brew bundle            # mise, xmlstarlet, yamllint
+   brew bundle            # mise, yamllint
    mise install           # XcodeGen, SwiftLint, SwiftFormat, ShellCheck, actionlint (versions in mise.toml)
    git config core.hooksPath .githooks
    ```

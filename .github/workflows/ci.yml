@@ -36,8 +36,8 @@ jobs:
         with:
           cache: true
 
-      - name: Install yamllint and xmlstarlet
-        run: sudo apt-get install -y --no-install-recommends yamllint xmlstarlet
+      - name: Install yamllint and xmllint
+        run: sudo apt-get install -y --no-install-recommends yamllint libxml2-utils
 
       - name: Lint
         run: bash scripts/lint.sh
