@@ -208,9 +208,10 @@ Swift files, plus ShellCheck on staged scripts.
 | --- | --- | --- |
 | Lint | `ubuntu-latest` | `scripts/lint.sh` with the tool versions from `mise.toml` |
 | Package tests | `macos-26` | `swift test` in `ios/Modules` on the macOS host |
-| Test (iOS, iPadOS, tvOS, visionOS, watchOS) | `macos-26` | Generates the project, runs module and UI tests on that platform's simulator; the iOS job also builds Release |
+| Test (iOS, iPadOS, tvOS, visionOS, watchOS) | `macos-26` | Generates the project, runs module and UI tests on that platform's simulator (module tests only on visionOS and watchOS); the iOS job also builds Release |
 
-SwiftPM checkouts and mise tools are cached. Every run uploads the screenshots the UI tests take
+The visionOS simulator is too slow on GitHub-hosted runners for XCUITest's app launch timeout, so
+visionOS UI tests run locally only. SwiftPM checkouts and mise tools are cached. Every run uploads the screenshots the UI tests take
 (`screenshots-<platform>` artifacts); test results and crash logs are uploaded when a job fails.
 To move to a new Xcode, change `XCODE_VERSION` at the top of the workflow (see the
 [runner images](https://github.com/actions/runner-images/tree/main/images/macos) for what is installed).

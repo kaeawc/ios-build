@@ -84,6 +84,14 @@ jobs:
       fail-fast: false
       matrix:
         platform: [iOS, iPadOS, tvOS, visionOS, watchOS]
+        include:
+          # On GitHub-hosted runners the visionOS simulator often exceeds XCUITest's app launch
+          # timeout, so CI runs only the module tests there; run the UI tests locally.
+          - platform: visionOS
+            unit_tests_only: true
+          # The watch app has no UI tests.
+          - platform: watchOS
+            unit_tests_only: true
     steps:
       - uses: actions/checkout@v7
 
@@ -112,6 +120,7 @@ jobs:
       - name: Test
         env:
           SIMULATOR_ID: ${{ steps.simulator.outputs.id }}
+          UNIT_TESTS_ONLY: ${{ matrix.unit_tests_only || false }}
         run: bash scripts/ios/test.sh "${{ matrix.platform }}"
 
       - name: Build Release
@@ -120,14 +129,14 @@ jobs:
 
       # Screenshots the UI tests attach (one per screen), handy for reviewing UI changes.
       - name: Export screenshots
-        if: always() && matrix.platform != 'watchOS'
+        if: always() && !matrix.unit_tests_only
         run: |
           xcrun xcresulttool export attachments \
             --path "build/${{ matrix.platform }}.xcresult" \
             --output-path "build/screenshots/${{ matrix.platform }}"
 
       - name: Upload screenshots
-        if: always() && matrix.platform != 'watchOS'
+        if: always() && !matrix.unit_tests_only
         uses: actions/upload-artifact@v7
         with:
           name: screenshots-${{ matrix.platform }}
