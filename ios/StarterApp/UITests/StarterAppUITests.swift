@@ -11,6 +11,7 @@ final class StarterAppUITests: XCTestCase {
         // Match by substring: tvOS merges a LabeledContent row into one element ("Connection, Online").
         XCTAssertTrue(app.staticTexts.firstMatch(labelContaining: "Online").waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts.firstMatch(labelContaining: "HTTP 200").waitForExistence(timeout: 10))
+        attachScreenshot(of: app, named: "Status")
     }
 
     #if !os(tvOS) // tvOS has no touch input; drive it with XCUIRemote instead.
@@ -29,6 +30,7 @@ final class StarterAppUITests: XCTestCase {
             XCTAssertTrue(total.waitForExistence(timeout: 10))
             // The label is "1", or "Total launches, 1" where the row is merged into one element.
             XCTAssertEqual(total.label.components(separatedBy: ", ").last, "1")
+            attachScreenshot(of: app, named: "Launch History")
         }
     #endif
 
@@ -39,6 +41,16 @@ final class StarterAppUITests: XCTestCase {
         app.launchArguments = ["--ui-testing"]
         app.launch()
         return app
+    }
+
+    /// Keeps a screenshot in the result bundle even when the test passes; CI exports them as the
+    /// `screenshots-<platform>` artifact.
+    @MainActor
+    private func attachScreenshot(of app: XCUIApplication, named name: String) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 }
 
