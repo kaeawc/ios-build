@@ -60,14 +60,16 @@ struct AppModelTests {
     }
 }
 
+// Test fixtures are used from @Sendable closures, so they opt out of this target's default
+// main-actor isolation.
 extension URL {
-    fileprivate static let upHost = URL(string: "https://up.test")!
-    fileprivate static let downHost = URL(string: "https://down.test")!
+    nonisolated fileprivate static let upHost = URL(string: "https://up.test")!
+    nonisolated fileprivate static let downHost = URL(string: "https://down.test")!
 }
 
 extension ConnectivityClient {
     /// Online, but `URL.downHost` times out while every other host answers `200`.
-    fileprivate static let oneHostDown = ConnectivityClient(
+    nonisolated fileprivate static let oneHostDown = ConnectivityClient(
         pathUpdates: { AsyncStream { $0.finish() } },
         check: { url in
             url == .downHost
