@@ -72,7 +72,11 @@ public final class AppModel {
             for url in hosts {
                 group.addTask { await connectivity.check(url) }
             }
-            return await group.reduce(into: [URL: HostCheck]()) { $0[$1.url] = $1 }
+            var results: [URL: HostCheck] = [:]
+            for await check in group {
+                results[check.url] = check
+            }
+            return results
         }
         checkState = .finished(hosts.compactMap { results[$0] })
     }
