@@ -27,6 +27,11 @@ if [[ "${UNIT_TESTS_ONLY:-false}" == "true" && "$SCHEME" == "StarterApp" ]]; the
   extra_flags+=(-skip-testing:StarterAppUITests)
 fi
 
+# Boot the simulator and wait until it has fully started. Left to xcodebuild, a freshly created
+# simulator can still be finishing its first boot when UI tests launch the app, which times out.
+echo "Booting simulator $simulator_id"
+xcrun simctl bootstatus "$simulator_id" -b >/dev/null
+
 echo "Testing $SCHEME on $SIMULATOR_PLATFORM ($simulator_id)"
 run_xcodebuild test \
   -project "$PROJECT_PATH" \
