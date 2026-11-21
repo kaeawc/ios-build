@@ -3,7 +3,7 @@
 # Check if xcodegen is installed
 if ! command -v xcodegen &>/dev/null; then
   echo "xcodegen is not installed."
-  echo "Install with: brew install xcodegen"
+  echo "Install with: mise install (versions in mise.toml)"
   exit 1
 fi
 

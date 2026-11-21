@@ -23,7 +23,9 @@ start_time=$(bash "$(pwd)/scripts/utils/get_timestamp.sh")
 parallel_jobs=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 
 # Collect XML and plist files tracked by git
-mapfile -t xml_files < <(git ls-files --cached --others --exclude-standard | grep -E '\.(xml|plist)$' || true)
+# A read loop rather than mapfile, which macOS's bash 3.2 lacks.
+xml_files=()
+while IFS= read -r file; do xml_files+=("$file"); done < <(git ls-files --cached --others --exclude-standard | grep -E '\.(xml|plist)$' || true)
 
 if [[ ${#xml_files[@]} -eq 0 ]]; then
   end_time=$(bash "$(pwd)/scripts/utils/get_timestamp.sh")
