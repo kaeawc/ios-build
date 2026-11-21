@@ -8,7 +8,7 @@ Swift Testing, linting, and GitHub Actions CI that builds and tests on every pla
 | --- | --- |
 | Toolchain | Xcode 26 (CI uses 26.6), Swift 6 language mode, approachable concurrency |
 | Platforms | iOS/iPadOS 18, watchOS 11, tvOS 18, visionOS 2 |
-| UI & state | SwiftUI, `@Observable` (Swift Observation), `NavigationSplitView` |
+| UI & state | SwiftUI, `@Observable` (Swift Observation), adaptive `TabView` |
 | Libraries | [GRDB](https://github.com/groue/GRDB.swift) (SQLite), [Alamofire](https://github.com/Alamofire/Alamofire) (HTTP), [swift-dependencies](https://github.com/pointfreeco/swift-dependencies) (dependency injection) |
 | Tests | Swift Testing for modules, XCTest for UI tests |
 | Project | [XcodeGen](https://github.com/yonaskolb/XcodeGen) + xcconfig files (no `.xcodeproj` in git) |
@@ -159,8 +159,10 @@ One app target (`StarterApp`) builds for iPhone, iPad, Apple TV and Apple Vision
 [`App.xcconfig`](ios/StarterApp/Configurations/App.xcconfig) handle per-platform settings. The
 watch app is a separate target that ships inside the iOS app and also runs independently.
 
-- **iPad**: all orientations are enabled so the app supports Split View and Stage Manager;
-  `NavigationSplitView` shows a sidebar in regular width and collapses to a stack in compact width.
+- **iPad**: all orientations are enabled so the app supports Split View and Stage Manager. The
+  root `TabView` uses `.sidebarAdaptable`: a floating tab bar that people can expand into a sidebar.
+  It shows as a tab bar on iPhone, a top tab bar on Apple TV, an ornament on Vision Pro and vertical
+  pages on Apple Watch.
 - **Apple Watch**: shares `AppView`. `WKRunsIndependentlyOfCompanionApp` is on, so the watch app
   works without the phone nearby.
 - **Apple TV**: there is no persistent local storage on tvOS, so the database lives in Caches.

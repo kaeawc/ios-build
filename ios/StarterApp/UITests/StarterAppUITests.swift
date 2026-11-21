@@ -19,12 +19,9 @@ final class StarterAppUITests: XCTestCase {
         func testRecordsTheLaunchInHistory() {
             let app = launchApp()
 
-            let historyLink = app.buttons["Launch History"]
-            if !historyLink.waitForExistence(timeout: 2) {
-                // Compact width (iPhone): the detail column is showing, so go back to the sidebar.
-                app.navigationBars.buttons.firstMatch.tap()
-            }
-            historyLink.tap()
+            let historyTab = app.buttons["Launch History"]
+            XCTAssertTrue(historyTab.waitForExistence(timeout: 10))
+            historyTab.tap()
 
             let total = app.staticTexts["history.total"]
             XCTAssertTrue(total.waitForExistence(timeout: 10))

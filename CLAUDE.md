@@ -31,7 +31,7 @@ bash scripts/format.sh  # SwiftFormat + SwiftLint --fix
 ## Architecture
 
 - **`ios/Modules`** — local Swift package holding all app code:
-  - `AppFeature` — SwiftUI views (`AppView`, `StatusView`, `HistoryView`) and the `@Observable` `AppModel`;
+  - `AppFeature` — SwiftUI views (`AppView`, an adaptive `TabView`; `StatusView`; `HistoryView`) and the `@Observable` `AppModel`;
     `.defaultIsolation(MainActor.self)`. `AppEnvironment.bootstrap()` swaps in fakes for `--ui-testing`.
   - `Connectivity` — `ConnectivityClient` (struct of closures): `NWPathMonitor` path updates + Alamofire `HEAD` checks.
   - `Persistence` — `AppDatabase` over GRDB: `Session` record, `DatabaseMigrator`, `ValueObservation` as `AsyncSequence`.

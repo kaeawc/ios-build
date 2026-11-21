@@ -4,56 +4,36 @@ import SwiftUI
 
 /// The root view on every platform.
 ///
-/// `NavigationSplitView` adapts on its own: a sidebar next to the detail on iPad, Apple TV and
-/// Apple Vision Pro, and a navigation stack on iPhone, Apple Watch and narrow iPad windows.
+/// A `TabView` of top-level sections adapts to each platform: a tab bar on iPhone, a tab bar that
+/// turns into a sidebar on iPad (`.sidebarAdaptable`), a top tab bar on Apple TV, an ornament on
+/// Apple Vision Pro, and vertical pages on Apple Watch.
 public struct AppView: View {
-    enum Destination: String, CaseIterable, Identifiable {
+    enum Destination: Hashable {
         case status
         case history
-
-        var id: Self {
-            self
-        }
-
-        var title: LocalizedStringKey {
-            switch self {
-            case .status: "Status"
-            case .history: "Launch History"
-            }
-        }
-
-        var systemImage: String {
-            switch self {
-            case .status: "network"
-            case .history: "clock.arrow.circlepath"
-            }
-        }
     }
 
     @State private var model = AppModel()
-    @State private var selection: Destination? = .status
-    @State private var preferredColumn = NavigationSplitViewColumn.detail
+    @State private var selection = Destination.status
 
     public init() {}
 
     public var body: some View {
-        NavigationSplitView(preferredCompactColumn: $preferredColumn) {
-            List(Destination.allCases, selection: $selection) { destination in
-                NavigationLink(value: destination) {
-                    Label(destination.title, systemImage: destination.systemImage)
+        TabView(selection: $selection) {
+            Tab("Status", systemImage: "network", value: .status) {
+                NavigationStack {
+                    StatusView(model: model)
                 }
             }
-            .navigationTitle("StarterApp")
-        } detail: {
-            switch selection {
-            case .status:
-                StatusView(model: model)
-            case .history:
-                HistoryView(model: model)
-            case nil:
-                ContentUnavailableView("Choose a section", systemImage: "sidebar.left")
+            Tab("Launch History", systemImage: "clock.arrow.circlepath", value: .history) {
+                NavigationStack {
+                    HistoryView(model: model)
+                }
             }
         }
+        #if os(iOS)
+        .tabViewStyle(.sidebarAdaptable)
+        #endif
         .task { await model.task() }
     }
 }
