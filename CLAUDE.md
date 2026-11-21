@@ -2,103 +2,72 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+A template for new Apple-platform apps: one SwiftUI codebase for iPhone, iPad, Apple Watch, Apple TV
+and Apple Vision Pro. README.md is the user-facing guide; this file is the short version for agents.
+
 ## Common Commands
 
 ### Setup
 ```bash
-brew bundle                          # Install required tools (shellcheck, swiftformat, swiftlint, xmlstarlet, xcodegen, yamllint)
-git config core.hooksPath .githooks  # Install git hooks
-bash scripts/ios/xcodegen-generate.sh  # Generate .xcodeproj from project.yml (required before opening in Xcode)
+brew bundle && mise install            # tools; versions pinned in mise.toml
+git config core.hooksPath .githooks    # pre-commit lint, regenerate project on checkout/merge
+bash scripts/ios/xcodegen-generate.sh  # generate ios/StarterApp/StarterApp.xcodeproj (never committed)
 ```
 
-### Building
+### Build and test (platform: iOS | iPadOS | tvOS | visionOS | watchOS, default iOS)
 ```bash
-bash scripts/ios/xcode-build.sh              # Debug build for iOS Simulator
-bash scripts/ios/xcode-build-for-testing.sh  # Build test artifacts
-bash scripts/ios/xcode-build-release.sh      # Release build
-bash scripts/ios/create-ipa.sh <output.ipa>  # Package IPA from Debug build
+bash scripts/ios/build.sh [platform] [Debug|Release]  # simulator build
+bash scripts/ios/test.sh [platform]                   # module tests + UI tests on a simulator
+UNIT_TESTS_ONLY=true bash scripts/ios/test.sh tvOS    # skip UI tests
+(cd ios/Modules && swift test)                        # module tests on the Mac host, no simulator
 ```
 
-### Testing
+### Lint and format
 ```bash
-bash scripts/ios/xcode-test.sh                   # Build and run unit tests
-bash scripts/ios/xcode-test-without-building.sh  # Run tests against pre-built binaries
-```
-
-### Validation
-```bash
-ONLY_TOUCHED_FILES=false bash scripts/shellcheck/validate_shell_scripts.sh  # Validate all shell scripts + git hooks
-ONLY_TOUCHED_FILES=false bash scripts/swiftformat/validate_swiftformat.sh   # Check Swift formatting
-ONLY_TOUCHED_FILES=false bash scripts/swiftlint/validate_swiftlint.sh       # Lint Swift files
-bash scripts/xml/validate_xml.sh    # Validate XML and plist files
-bash scripts/yaml/validate_yaml.sh  # Validate YAML files
+bash scripts/lint.sh    # everything CI's Lint job runs
+bash scripts/format.sh  # SwiftFormat + SwiftLint --fix
 ```
 
 ## Architecture
 
-### Project Generation
-The `.xcodeproj` is **not committed**. It is generated from `ios/StarterApp/project.yml` using XcodeGen. Always regenerate after changing `project.yml` or after `post-checkout`/`post-merge` git hooks do it automatically.
+- **`ios/Modules`** — local Swift package holding all app code:
+  - `AppFeature` — SwiftUI views (`AppView`, `StatusView`, `HistoryView`) and the `@Observable` `AppModel`;
+    `.defaultIsolation(MainActor.self)`. `AppEnvironment.bootstrap()` swaps in fakes for `--ui-testing`.
+  - `Connectivity` — `ConnectivityClient` (struct of closures): `NWPathMonitor` path updates + Alamofire `HEAD` checks.
+  - `Persistence` — `AppDatabase` over GRDB: `Session` record, `DatabaseMigrator`, `ValueObservation` as `AsyncSequence`.
+  - Each client module registers a `swift-dependencies` key with live/preview/test values. Test values
+    fail on use (connectivity) or are fresh in-memory databases (persistence).
+- **`ios/StarterApp`** — XcodeGen spec (`project.yml`) and thin app shells:
+  - `StarterApp` target: iOS/iPadOS + tvOS + visionOS via `supportedDestinations`; embeds the watch app (iOS only).
+  - `StarterAppWatch` target: watchOS app, independent of the phone.
+  - `StarterAppUITests`: XCTest UI tests; the app is launched with `--ui-testing`.
+  - Schemes `StarterApp` and `StarterAppWatch` list the package test targets (`package: Modules/<Name>Tests`);
+    add new test targets there.
+- **Build settings** live in `ios/StarterApp/Configurations/*.xcconfig` (`settingPresets: targets` keeps
+  XcodeGen out of project-level settings). Identity (`APP_NAME`, `BUNDLE_ID_PREFIX`, ...) is in `Shared.xcconfig`.
+  Deployment targets there must match `platforms` in `Package.swift`.
+- **Swift settings** (same in Package.swift and Shared.xcconfig): Swift 6 language mode, approachable
+  concurrency (`NonisolatedNonsendingByDefault`, `InferIsolatedConformances`), `ExistentialAny`,
+  `MemberImportVisibility` (every module whose members you use needs an explicit `import`).
+- **Tests**: Swift Testing (`@Test`, `#expect`, raw-identifier names) for modules; XCTest only for UI tests.
 
-### iOS App (`ios/StarterApp/`)
-Small starter app used to validate build infrastructure. Key source files:
+## CI (`.github/workflows/ci.yml`)
 
-- **`StarterApp.swift`** — `@main` entry point; initializes `AppDatabase`, records a `Session`, and kicks off network checks
-- **`ContentView.swift`** — SwiftUI view showing session count (via `@FetchOne`) and animated network status indicators
-- **`AppDatabase.swift`** — Creates `DatabaseQueue` with SQLiteData migrations; injectable via `swift-dependencies`
-- **`Session.swift`** — `@Table` SQLiteData model representing an app launch (UUID + timestamp)
-- **`NetworkChecker.swift`** — Async utilities for DNS reachability (8.8.8.8) and HTTP reachability (example.com) using Alamofire
+- **Lint** (ubuntu): `scripts/lint.sh` with mise-installed tools (`swiftlint-static` on Linux).
+- **Package tests** (macos-26): `swift test` in `ios/Modules`.
+- **Test** matrix (macos-26, Xcode `XCODE_VERSION`): iOS, iPadOS, tvOS, visionOS, watchOS — generate project,
+  `scripts/ios/test.sh <platform>`; iOS also builds Release. xcresult + crash logs uploaded on failure.
+- Renovate (`.github/renovate.json`) updates Package.swift, GitHub Actions and mise.toml. Xcode is bumped by hand.
 
-### Dependencies (SPM, declared in `project.yml`)
-- **Alamofire** 5.9.1+ — HTTP networking
-- **SQLiteData** 1.6.0+ — Type-safe SQLite wrapper (Point-Free, wraps GRDB)
-- **swift-dependencies** 1.0.0+ — Dependency injection (test target only)
-
-### Dependency Injection Pattern
-`AppDatabase` is registered as a dependency with `swift-dependencies`. Tests use `withDependencies { $0.database = .inMemory } operation: { ... }` to inject an in-memory database.
-
-### Build Configurations
-- **`Configurations/Debug.xcconfig`** — `-Onone`, single-file compilation, testability enabled, active arch only
-- **`Configurations/Release.xcconfig`** — `-O`, whole-module optimization, dSYM output, all architectures
-
-Notable build flags applied in scripts (all build/test scripts):
-- `-skipMacroValidation` — Skips macro validation for faster CI builds
-- `COMPILER_INDEX_STORE_ENABLE=NO`, `INDEX_ENABLE_DATA_STORE=NO` — Reduce DerivedData size (~40%) in CI
-- `CODE_SIGN_IDENTITY=""` / `CODE_SIGNING_REQUIRED=NO` — Simulator-only; no signing needed
-- `SWIFT_ENABLE_EXPLICIT_MODULES=NO` — Applied in test scripts for compatibility
-
-### CI/CD (`.github/workflows/commit.yml`)
-Jobs run on every push/PR:
-
-1. **Static analysis** (Ubuntu): `shellcheck`, `validate-xml` (covers `.xml` + `.plist`), `validate-yaml`
-2. **Swift quality** (macOS 15): `swiftformat`, `swiftlint`
-3. **XcodeGen validation** (macOS 15): generates project, uploads as `xcode-projects` artifact
-4. **Build matrix** (macOS 15 + macOS 26, Xcode 16 + Xcode 26.2): downloads xcodeproj artifact, runs `build-for-testing`, uploads build products
-5. **Simulator tests** (macOS 26 / Xcode 26.2): downloads artifact, streams simulator logs, runs `test-without-building`; on failure uploads `.xcresult`, simulator logs, crash logs, and build logs
-6. **IPA diff** (macOS 15 + Ubuntu): builds IPA for current branch and PR base, posts binary size diff as PR comment
-
-**Caching strategy**: All three build jobs (`build-for-testing`, `build-ipa`, `build-base-ipa`) cache:
-- Homebrew downloads — keyed on `Brewfile`
-- SPM packages (`build/DerivedData/SourcePackages`) — keyed on `project.yml`
-- DerivedData intermediates (`build/DerivedData/Build/Intermediates.noindex`) — keyed on Xcode version + source/config hashes; `build-for-testing` and `build-ipa` share the same Debug key on macOS 15 (`macos-15-xcode16-intermediates-*`)
-
-**XcodeGen artifact**: The `xcodegen` job uploads the generated `StarterApp.xcodeproj` as a short-lived artifact. `build-for-testing` and `build-ipa` download it instead of re-running XcodeGen. `build-base-ipa` generates its own (checks out a different commit).
-
-### YAML Linting
-`.yamllint.yml` extends yamllint's default config with:
-- `truthy.check-keys: false` — allows unquoted `YES`/`NO` as map keys (only values are checked)
-- `braces.max-spaces-inside: 1` — permits `${{ expr }}` style in GitHub Actions
-- `line-length.max: 200` — accommodates long `xcodebuild` flag lists
-- `document-start: disable` — does not require `---` at the top of files
-
-### Code Style
-- **SwiftFormat**: 120-char line width, 4-space indent, import sorting enabled. Config in `.swiftformat`.
-- **SwiftLint**: 25+ opt-in rules; formatting rules disabled (delegated to SwiftFormat). Config in `.swiftlint.yml`.
-- Pre-commit hook runs shellcheck (touched files only), swiftformat, and swiftlint on touched files.
+## Code Style
+- **SwiftFormat** (`.swiftformat`): 120 columns, 4-space indent, Swift 6.2 rules. Owns all formatting.
+- **SwiftLint** (`.swiftlint.yml`): formatting rules disabled; run with `--strict` in CI.
+- Shell scripts must work with macOS's bash 3.2 (no `mapfile`; guard empty arrays under `set -u`).
 
 ## Logging & Debugging
 
 ### OSLog / Logger (Swift)
-Use `Logger` from `import OSLog` (iOS 14+). Organize by subsystem (bundle ID) and category:
+Use `Logger` from `import OSLog`. Organize by subsystem (bundle ID) and category; each module keeps a private logger:
 
 ```swift
 import OSLog
@@ -131,12 +100,12 @@ extension ProcessInfo {
 # Stream live logs from the booted simulator, filtered to this app
 xcrun simctl spawn booted log stream \
   --level debug --style compact \
-  --predicate 'subsystem BEGINSWITH "dev.jasonpearson.ios"'
+  --predicate 'subsystem BEGINSWITH "com.example.StarterApp"'
 
 # Historical logs from the last hour
 xcrun simctl spawn booted log show \
   --last 1h --style compact \
-  --predicate 'subsystem BEGINSWITH "dev.jasonpearson.ios"'
+  --predicate 'subsystem BEGINSWITH "com.example.StarterApp"'
 
 # Collect a .logarchive as an artifact
 xcrun simctl spawn booted log collect \
@@ -145,24 +114,24 @@ xcrun simctl spawn booted log collect \
 
 ### Useful simctl Commands
 ```bash
-xcrun simctl launch booted dev.jasonpearson.ios.StarterApp      # launch app
-xcrun simctl launch --console booted dev.jasonpearson.ios.StarterApp  # with stdout
-xcrun simctl get_app_container booted dev.jasonpearson.ios.StarterApp data  # data dir
-xcrun simctl privacy booted grant location dev.jasonpearson.ios.StarterApp  # permissions
+xcrun simctl launch booted com.example.StarterApp      # launch app
+xcrun simctl launch --console booted com.example.StarterApp  # with stdout
+xcrun simctl get_app_container booted com.example.StarterApp data  # data dir
+xcrun simctl privacy booted grant location com.example.StarterApp  # permissions
 xcrun simctl delete unavailable                                  # free disk space
 ```
 
 ### Test Result Bundles (Xcode 16+ API)
 ```bash
 # Pass/fail summary
-xcrun xcresulttool get test-results summary --path build/test.xcresult
+xcrun xcresulttool get test-results summary --path build/iOS.xcresult
 
 # All tests with status
-xcrun xcresulttool get test-results tests --path build/test.xcresult
+xcrun xcresulttool get test-results tests --path build/iOS.xcresult
 
 # Extract failing test identifiers
 xcrun xcresulttool get test-results tests \
-  --path build/test.xcresult --format json \
+  --path build/iOS.xcresult --format json \
   | jq '[.. | objects | select(.testStatus? == "Failure") | .nodeIdentifier]'
 ```
 
