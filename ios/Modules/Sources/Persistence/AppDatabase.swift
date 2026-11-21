@@ -107,9 +107,7 @@ extension AppDatabase {
     /// The launch history, re-emitted every time the `session` table changes.
     ///
     /// Returns an opaque sequence so features iterate it without importing GRDB.
-    public func observeSessionHistory(
-        recentLimit: Int = 20,
-    ) -> some AsyncSequence<SessionHistory, any Error> & Sendable {
+    public func observeSessionHistory(recentLimit: Int = 20) -> some AsyncSequence<SessionHistory, any Error> {
         ValueObservation
             .tracking { db in
                 try SessionHistory(
