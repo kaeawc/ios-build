@@ -1,0 +1,18 @@
+// The watchOS app. It runs on its own (WKRunsIndependentlyOfCompanionApp) and ships inside the
+// iOS app, so users get it automatically when they install the app on their iPhone.
+
+PRODUCT_NAME = $(APP_NAME)Watch
+// Must start with the companion app's bundle identifier.
+PRODUCT_BUNDLE_IDENTIFIER = $(APP_BUNDLE_IDENTIFIER).watchkitapp
+SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor
+ENABLE_PREVIEWS = YES
+SKIP_INSTALL = YES
+
+ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
+ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor
+
+// Generated keys are merged with the watch-specific keys in Watch/Info.plist.
+GENERATE_INFOPLIST_FILE = YES
+INFOPLIST_FILE = Watch/Info.plist
+INFOPLIST_KEY_CFBundleDisplayName = $(APP_DISPLAY_NAME)
+INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown
