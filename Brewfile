@@ -1,6 +1,3 @@
-brew "shellcheck"
-brew "swiftformat"
-brew "swiftlint"
-brew "xmlstarlet"
-brew "xcodegen"
+# macOS developer tools: `brew bundle`, then `mise install` for the versions pinned in mise.toml.
+brew "mise"
 brew "yamllint"

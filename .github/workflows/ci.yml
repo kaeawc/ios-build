@@ -1,0 +1,162 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # The Xcode used for every macOS job. Bump it here (Renovate does not track Xcode); runner
+  # images list what is installed: https://github.com/actions/runner-images/tree/main/images/macos
+  XCODE_VERSION: "26.6"
+  # mise reads tool versions from mise.toml; the token avoids GitHub API rate limits.
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  # ===========================================================================
+  # Lint (Linux: fast and cheap). Tool versions come from mise.toml.
+  # ===========================================================================
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: jdx/mise-action@v5
+        with:
+          cache: true
+
+      - name: Install yamllint and xmllint
+        run: sudo apt-get install -y --no-install-recommends yamllint libxml2-utils
+
+      - name: Lint
+        run: bash scripts/lint.sh
+
+  # ===========================================================================
+  # Module tests on the macOS host: `swift test` in ios/Modules, no simulator.
+  # Quickest feedback on the package itself.
+  # ===========================================================================
+
+  package-tests:
+    name: Package tests (macOS host)
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode
+        run: sudo xcode-select --switch "/Applications/Xcode_${XCODE_VERSION}.app"
+
+      - name: Cache SwiftPM
+        uses: actions/cache@v6
+        with:
+          path: ios/Modules/.build
+          key: spm-host-xcode${{ env.XCODE_VERSION }}-${{ hashFiles('ios/Modules/Package.swift', 'ios/Modules/Package.resolved') }}
+          restore-keys: spm-host-xcode${{ env.XCODE_VERSION }}-
+
+      - name: swift test
+        working-directory: ios/Modules
+        run: swift test --parallel
+
+  # ===========================================================================
+  # Build and test the app on every platform's simulator.
+  #
+  # Each job generates the Xcode project with XcodeGen, then runs the module
+  # tests (Swift Testing) and the UI tests (XCTest) through the app scheme.
+  # SwiftPM checkouts are cached per Xcode version and Package.swift.
+  # ===========================================================================
+
+  test:
+    name: Test (${{ matrix.platform }})
+    runs-on: macos-26
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [iOS, iPadOS, tvOS, visionOS, watchOS]
+        include:
+          # On GitHub-hosted runners the visionOS simulator often exceeds XCUITest's app launch
+          # timeout, so CI runs only the module tests there; run the UI tests locally.
+          - platform: visionOS
+            unit_tests_only: true
+          # The watch app has no UI tests.
+          - platform: watchOS
+            unit_tests_only: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode
+        run: sudo xcode-select --switch "/Applications/Xcode_${XCODE_VERSION}.app"
+
+      - uses: jdx/mise-action@v5
+        with:
+          install_args: xcodegen
+          cache: true
+
+      - name: Generate Xcode project
+        run: bash scripts/ios/xcodegen-generate.sh
+
+      - name: Cache SwiftPM checkouts
+        uses: actions/cache@v6
+        with:
+          path: build/DerivedData/SourcePackages
+          key: spm-xcode${{ env.XCODE_VERSION }}-${{ hashFiles('ios/Modules/Package.swift', 'ios/StarterApp/project.yml') }}
+          restore-keys: spm-xcode${{ env.XCODE_VERSION }}-
+
+      - name: Pick a simulator
+        id: simulator
+        run: echo "id=$(bash scripts/ios/find-simulator.sh "${{ matrix.platform }}")" >> "$GITHUB_OUTPUT"
+
+      - name: Test
+        env:
+          SIMULATOR_ID: ${{ steps.simulator.outputs.id }}
+          UNIT_TESTS_ONLY: ${{ matrix.unit_tests_only || false }}
+        run: bash scripts/ios/test.sh "${{ matrix.platform }}"
+
+      - name: Build Release
+        if: matrix.platform == 'iOS'
+        run: bash scripts/ios/build.sh iOS Release
+
+      # Screenshots the UI tests attach (one per screen), handy for reviewing UI changes.
+      - name: Export screenshots
+        if: always() && !matrix.unit_tests_only
+        run: |
+          xcrun xcresulttool export attachments \
+            --path "build/${{ matrix.platform }}.xcresult" \
+            --output-path "build/screenshots/${{ matrix.platform }}"
+
+      - name: Upload screenshots
+        if: always() && !matrix.unit_tests_only
+        uses: actions/upload-artifact@v7
+        with:
+          name: screenshots-${{ matrix.platform }}
+          path: build/screenshots/${{ matrix.platform }}
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-${{ matrix.platform }}
+          path: build/${{ matrix.platform }}.xcresult
+          retention-days: 7
+
+      - name: Upload crash logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: crash-logs-${{ matrix.platform }}
+          path: ~/Library/Logs/DiagnosticReports/StarterApp*
+          if-no-files-found: ignore
+          retention-days: 7

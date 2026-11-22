@@ -1,0 +1,51 @@
+// Settings shared by every target and configuration. Debug.xcconfig and Release.xcconfig include
+// this file; per-target settings live in App.xcconfig, Watch.xcconfig and UITests.xcconfig.
+//
+// XcodeGen only writes platform/product defaults (SDKROOT, TARGETED_DEVICE_FAMILY, ...) into the
+// generated project (`settingPresets: targets` in project.yml), so these files are the single
+// source of truth for everything else.
+
+// MARK: Identity — change these when starting a new project (scripts/rename.sh does it for you).
+
+APP_NAME = StarterApp
+APP_DISPLAY_NAME = StarterApp
+BUNDLE_ID_PREFIX = com.example
+APP_BUNDLE_IDENTIFIER = $(BUNDLE_ID_PREFIX).StarterApp
+MARKETING_VERSION = 1.0.0
+CURRENT_PROJECT_VERSION = 1
+
+// Your Apple Developer team ID. Leave empty to build for simulators only; to keep it out of git,
+// set it in an untracked Local.xcconfig instead (see the end of this file).
+DEVELOPMENT_TEAM =
+CODE_SIGN_STYLE = Automatic
+
+// MARK: Deployment targets — keep in sync with `platforms` in ios/Modules/Package.swift.
+
+IPHONEOS_DEPLOYMENT_TARGET = 18.0
+TVOS_DEPLOYMENT_TARGET = 18.0
+WATCHOS_DEPLOYMENT_TARGET = 11.0
+XROS_DEPLOYMENT_TARGET = 2.0
+
+// MARK: Swift — Swift 6 language mode (complete data-race checking) plus the same upcoming
+// features the local package enables.
+
+SWIFT_VERSION = 6.0
+SWIFT_APPROACHABLE_CONCURRENCY = YES
+SWIFT_UPCOMING_FEATURE_EXISTENTIAL_ANY = YES
+SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES
+SWIFT_EMIT_LOC_STRINGS = YES
+
+// MARK: Build hygiene (Xcode 26 recommended settings)
+
+ALWAYS_SEARCH_USER_PATHS = NO
+ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES
+CLANG_ENABLE_MODULES = YES
+CLANG_ENABLE_OBJC_ARC = YES
+DEAD_CODE_STRIPPING = YES
+ENABLE_STRICT_OBJC_MSGSEND = YES
+ENABLE_USER_SCRIPT_SANDBOXING = YES
+LOCALIZATION_PREFERS_STRING_CATALOGS = YES
+STRING_CATALOG_GENERATE_SYMBOLS = YES
+
+// Optional, untracked overrides (e.g. DEVELOPMENT_TEAM). Copy Local.xcconfig.example to start.
+#include? "Local.xcconfig"

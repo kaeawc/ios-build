@@ -1,34 +1,42 @@
 #!/usr/bin/env bash
+#
+# Checks staged files before each commit. Enable with: git config core.hooksPath .githooks
+# Skip once with `git commit --no-verify`.
 
-set -e
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
 
-PROJECT_ROOT="$(git rev-parse --show-toplevel)"
-cd "$PROJECT_ROOT"
+warn_missing() {
+  echo "⚠ $1 not installed, skipping (run: mise install)"
+}
 
-echo "Running pre-commit hooks..."
+swift_files=()
+while IFS= read -r file; do
+  swift_files+=("$file")
+done < <(git diff --cached --name-only --diff-filter=ACMR -- '*.swift')
 
-# Validate shell scripts with shellcheck
-if command -v shellcheck &>/dev/null; then
-  echo "→ Checking shell scripts..."
-  ONLY_TOUCHED_FILES=true bash "$PROJECT_ROOT/scripts/shellcheck/validate_shell_scripts.sh"
-else
-  echo "⚠ shellcheck not installed, skipping shell script validation"
+if [[ ${#swift_files[@]} -gt 0 ]]; then
+  if command -v swiftformat >/dev/null 2>&1; then
+    echo "→ SwiftFormat"
+    swiftformat --lint --quiet "${swift_files[@]}" || {
+      echo "Run 'bash scripts/format.sh', then stage the changes."
+      exit 1
+    }
+  else
+    warn_missing swiftformat
+  fi
+
+  if command -v swiftlint >/dev/null 2>&1; then
+    echo "→ SwiftLint"
+    swiftlint lint --strict --quiet "${swift_files[@]}"
+  else
+    warn_missing swiftlint
+  fi
 fi
 
-# Format Swift files with swiftformat
-if command -v swiftformat &>/dev/null; then
-  echo "→ Formatting Swift files..."
-  ONLY_TOUCHED_FILES=true bash "$PROJECT_ROOT/scripts/swiftformat/apply_swiftformat.sh"
+if command -v shellcheck >/dev/null 2>&1; then
+  echo "→ ShellCheck"
+  ONLY_TOUCHED_FILES=true bash scripts/shellcheck/validate_shell_scripts.sh
 else
-  echo "⚠ swiftformat not installed, skipping Swift formatting"
+  warn_missing shellcheck
 fi
-
-# Lint Swift files with swiftlint
-if command -v swiftlint &>/dev/null; then
-  echo "→ Linting Swift files..."
-  ONLY_TOUCHED_FILES=true bash "$PROJECT_ROOT/scripts/swiftlint/apply_swiftlint.sh"
-else
-  echo "⚠ swiftlint not installed, skipping Swift linting"
-fi
-
-echo "Pre-commit checks passed!"

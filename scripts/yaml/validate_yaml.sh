@@ -15,7 +15,9 @@ fi
 start_time=$(bash "$(pwd)/scripts/utils/get_timestamp.sh")
 
 # Collect YAML files tracked by git
-mapfile -t yaml_files < <(git ls-files --cached --others --exclude-standard | grep -E '\.(yml|yaml)$' || true)
+# A read loop rather than mapfile, which macOS's bash 3.2 lacks.
+yaml_files=()
+while IFS= read -r file; do yaml_files+=("$file"); done < <(git ls-files --cached --others --exclude-standard | grep -E '\.(yml|yaml)$' || true)
 
 if [[ ${#yaml_files[@]} -eq 0 ]]; then
   end_time=$(bash "$(pwd)/scripts/utils/get_timestamp.sh")

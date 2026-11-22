@@ -1,105 +1,106 @@
+# XcodeGen spec for the app shells. The .xcodeproj is generated (`bash scripts/ios/xcodegen-generate.sh`)
+# and never committed, so there are no project-file merge conflicts. Build settings live in
+# Configurations/*.xcconfig; app code lives in the local Swift package at ../Modules.
 name: StarterApp
+
 options:
-  bundleIdPrefix: dev.jasonpearson.ios
-  deploymentTarget:
-    iOS: "17.0"
-  xcodeVersion: "16.0"
+  xcodeVersion: "26.0"
+  developmentLanguage: en
+  createIntermediateGroups: true
+  groupSortPosition: top
+  # Only per-target platform defaults (SDKROOT, TARGETED_DEVICE_FAMILY, runpath search paths, ...)
+  # come from XcodeGen; project-wide settings come from the xcconfig files below.
+  settingPresets: targets
 
 configFiles:
   Debug: Configurations/Debug.xcconfig
   Release: Configurations/Release.xcconfig
 
 packages:
-  Alamofire:
-    url: https://github.com/Alamofire/Alamofire
-    from: "5.9.1"
-  SQLiteData:
-    url: https://github.com/pointfreeco/sqlite-data
-    from: "1.6.0"
-  Dependencies:
-    url: https://github.com/pointfreeco/swift-dependencies
-    from: "1.0.0"
-  XCTestRunner:
-    path: ../../libs/spm/XCTestRunner
-
-settings:
-  base:
-    SWIFT_VERSION: "5.9"
+  Modules:
+    path: ../Modules
 
 targets:
   StarterApp:
     type: application
-    platform: iOS
+    # One target for iPhone and iPad (iOS), Apple TV (tvOS) and Apple Vision Pro (visionOS).
+    supportedDestinations: [iOS, tvOS, visionOS]
+    configFiles:
+      Debug: Configurations/App.xcconfig
+      Release: Configurations/App.xcconfig
     sources:
-      - path: Sources
-        excludes:
-          - "*.xcassets"
-      - path: Sources/Assets.xcassets
-        type: folder
-    settings:
-      base:
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        PRODUCT_BUNDLE_IDENTIFIER: dev.jasonpearson.ios.StarterApp
-        INFOPLIST_FILE: Sources/Info.plist
-        CODE_SIGN_STYLE: Automatic
-        GENERATE_INFOPLIST_FILE: "NO"
+      - path: App
     dependencies:
-      - package: Alamofire
-      - package: SQLiteData
-        product: SQLiteData
-      - package: Dependencies
-        product: Dependencies
+      - package: Modules
+        product: AppFeature
+      # Ship the watch app inside the iOS app.
+      - target: StarterAppWatch
+        destinationFilters: [iOS]
 
-  StarterAppTests:
-    type: bundle.unit-test
-    platform: iOS
+  StarterAppWatch:
+    type: application
+    platform: watchOS
+    configFiles:
+      Debug: Configurations/Watch.xcconfig
+      Release: Configurations/Watch.xcconfig
     sources:
-      - path: Tests
-        excludes:
-          - AutoMobile/**
+      - path: Watch
+    dependencies:
+      - package: Modules
+        product: AppFeature
+
+  StarterAppUITests:
+    type: bundle.ui-testing
+    supportedDestinations: [iOS, tvOS, visionOS]
+    configFiles:
+      Debug: Configurations/UITests.xcconfig
+      Release: Configurations/UITests.xcconfig
+    sources:
+      - path: UITests
     dependencies:
       - target: StarterApp
-      - package: Dependencies
-        product: Dependencies
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.jasonpearson.ios.StarterAppTests
-
-  StarterAppAutoMobileTests:
-    type: bundle.unit-test
-    platform: iOS
-    sources:
-      - path: Tests/AutoMobile
-        excludes:
-          - "test-plans/**"
-    resources:
-      - path: Tests/AutoMobile/test-plans
-    dependencies:
-      - target: StarterApp
-      - package: XCTestRunner
-        product: XCTestRunner
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.jasonpearson.ios.StarterAppAutoMobileTests
 
 schemes:
   StarterApp:
     build:
       targets:
         StarterApp: all
-        StarterAppTests:
-          - test
-        StarterAppAutoMobileTests:
-          - test
     run:
       config: Debug
     test:
       config: Debug
-      parallelizeBuild: true
-      enableCodeCoverage: false
+      gatherCoverageData: true
+      coverageTargets:
+        - StarterApp
+        - package: Modules/AppFeature
+        - package: Modules/Connectivity
+        - package: Modules/Persistence
       targets:
-        - name: StarterAppTests
-        - name: StarterAppAutoMobileTests
+        # Unit tests (Swift Testing) for every module in ../Modules. Add new test targets here.
+        - package: Modules/AppFeatureTests
+        - package: Modules/ConnectivityTests
+        - package: Modules/PersistenceTests
+        # UI tests (XCTest) against the real app.
+        - name: StarterAppUITests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
+
+  StarterAppWatch:
+    build:
+      targets:
+        StarterAppWatch: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - package: Modules/AppFeatureTests
+        - package: Modules/ConnectivityTests
+        - package: Modules/PersistenceTests
     profile:
       config: Release
     analyze:

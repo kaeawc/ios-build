@@ -3,7 +3,7 @@
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 
 if ! command -v xcodegen &>/dev/null; then
-  echo "⚠ xcodegen not installed — skipping project generation (brew install xcodegen)"
+  echo "⚠ xcodegen not installed — skipping project generation (run: mise install)"
   exit 0
 fi
 
