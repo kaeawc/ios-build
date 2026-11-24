@@ -1,0 +1,237 @@
+# The app shells for every platform, built by Bazel. Each is a few lines of SwiftUI around
+# `AppFeature` (ios/Modules); identity and deployment targets come from config.bzl.
+#
+#   bazel build //ios/StarterApp/...                       every app (the iOS app embeds the watch app)
+#   bazel test //ios/StarterApp:StarterAppUITests_iPhone   UI tests on an iPhone simulator
+
+load("@rules_apple//apple:ios.bzl", "ios_application", "ios_ui_test")
+load("@rules_apple//apple:tvos.bzl", "tvos_application")
+load("@rules_apple//apple:versioning.bzl", "apple_bundle_version")
+load("@rules_apple//apple:visionos.bzl", "visionos_application")
+load("@rules_apple//apple:watchos.bzl", "watchos_application")
+load("@rules_swift//swift:swift_library.bzl", "swift_library")
+load("//bazel:plist.bzl", "info_plist")
+load("//bazel:swift.bzl", "MAIN_ACTOR_COPTS", "SWIFT_FEATURES")
+load(
+    ":config.bzl",
+    "APP_BUNDLE_ID",
+    "APP_DISPLAY_NAME",
+    "APP_NAME",
+    "BUILD_NUMBER",
+    "IOS_MINIMUM_OS",
+    "MARKETING_VERSION",
+    "TVOS_MINIMUM_OS",
+    "VISIONOS_MINIMUM_OS",
+    "WATCHOS_MINIMUM_OS",
+    "WATCH_BUNDLE_ID",
+)
+
+package(features = SWIFT_FEATURES)
+
+# MARK: Shared
+
+# CFBundleShortVersionString and CFBundleVersion for every app, so the watch app always matches.
+apple_bundle_version(
+    name = "version",
+    build_version = BUILD_NUMBER,
+    short_version_string = MARKETING_VERSION,
+)
+
+# Keys every app needs. rules_apple fills in the $(...) placeholders and adds the platform keys
+# (MinimumOSVersion, UIDeviceFamily, DT*).
+BASE_INFO_PLIST = {
+    "CFBundleDevelopmentRegion": "en",
+    "CFBundleDisplayName": APP_DISPLAY_NAME,
+    "CFBundleExecutable": "$(EXECUTABLE_NAME)",
+    "CFBundleIdentifier": "$(PRODUCT_BUNDLE_IDENTIFIER)",
+    "CFBundleInfoDictionaryVersion": "6.0",
+    "CFBundleName": "$(PRODUCT_NAME)",
+    "CFBundlePackageType": "APPL",
+    "NSAccentColorName": "AccentColor",
+}
+
+APP_ICON_SETS = [
+    "App/Assets.xcassets/AppIcon.appiconset/**",
+    "App/Assets.xcassets/AppIcon-tvOS.brandassets/**",
+    "App/Assets.xcassets/AppIcon-visionOS.solidimagestack/**",
+]
+
+# Everything in the asset catalog except the app icons, which each platform adds through
+# `app_icons` (iOS, tvOS and visionOS each have their own icon format).
+filegroup(
+    name = "app_assets",
+    srcs = glob(
+        ["App/Assets.xcassets/**"],
+        exclude = APP_ICON_SETS,
+    ),
+)
+
+# MARK: iPhone, iPad, Apple TV, Apple Vision Pro
+
+swift_library(
+    name = "StarterAppLib",
+    srcs = glob(["App/**/*.swift"]),
+    copts = MAIN_ACTOR_COPTS,
+    module_name = APP_NAME,
+    deps = ["//ios/Modules:AppFeature"],
+)
+
+info_plist(
+    name = "Info-iOS",
+    values = BASE_INFO_PLIST | {
+        "LSApplicationCategoryType": "public.app-category.utilities",
+        "LSRequiresIPhoneOS": True,
+        "UIApplicationSceneManifest": {"UIApplicationSupportsMultipleScenes": True},
+        "UIApplicationSupportsIndirectInputEvents": True,
+        "UILaunchScreen": {},
+        "UISupportedInterfaceOrientations~iphone": [
+            "UIInterfaceOrientationPortrait",
+            "UIInterfaceOrientationLandscapeLeft",
+            "UIInterfaceOrientationLandscapeRight",
+        ],
+        # iPad apps must support every orientation to take part in multitasking (Split View,
+        # Stage Manager).
+        "UISupportedInterfaceOrientations~ipad": [
+            "UIInterfaceOrientationPortrait",
+            "UIInterfaceOrientationPortraitUpsideDown",
+            "UIInterfaceOrientationLandscapeLeft",
+            "UIInterfaceOrientationLandscapeRight",
+        ],
+    },
+)
+
+ios_application(
+    name = "StarterApp",
+    app_icons = glob(["App/Assets.xcassets/AppIcon.appiconset/**"]),
+    bundle_id = APP_BUNDLE_ID,
+    bundle_name = APP_NAME,
+    families = [
+        "iphone",
+        "ipad",
+    ],
+    infoplists = [":Info-iOS"],
+    minimum_os_version = IOS_MINIMUM_OS,
+    resources = [":app_assets"],
+    version = ":version",
+    visibility = ["//visibility:public"],
+    # Ship the watch app inside the iOS app.
+    watch_application = ":StarterAppWatch",
+    deps = [":StarterAppLib"],
+)
+
+info_plist(
+    name = "Info-tvOS",
+    values = BASE_INFO_PLIST | {
+        "LSApplicationCategoryType": "public.app-category.utilities",
+        "UIApplicationSceneManifest": {"UIApplicationSupportsMultipleScenes": True},
+        "UILaunchScreen": {},
+        "UIRequiredDeviceCapabilities": ["arm64"],
+    },
+)
+
+tvos_application(
+    name = "StarterApp_tvOS",
+    app_icons = glob(["App/Assets.xcassets/AppIcon-tvOS.brandassets/**"]),
+    bundle_id = APP_BUNDLE_ID,
+    bundle_name = APP_NAME,
+    infoplists = [":Info-tvOS"],
+    minimum_os_version = TVOS_MINIMUM_OS,
+    resources = [":app_assets"],
+    version = ":version",
+    visibility = ["//visibility:public"],
+    deps = [":StarterAppLib"],
+)
+
+info_plist(
+    name = "Info-visionOS",
+    values = BASE_INFO_PLIST | {
+        "LSApplicationCategoryType": "public.app-category.utilities",
+        "UIApplicationSceneManifest": {
+            "UIApplicationPreferredDefaultSceneSessionRole": "UIWindowSceneSessionRoleApplication",
+            "UIApplicationSupportsMultipleScenes": True,
+        },
+        "UIApplicationSupportsIndirectInputEvents": True,
+        "UILaunchScreen": {},
+    },
+)
+
+visionos_application(
+    name = "StarterApp_visionOS",
+    app_icons = glob(["App/Assets.xcassets/AppIcon-visionOS.solidimagestack/**"]),
+    bundle_id = APP_BUNDLE_ID,
+    bundle_name = APP_NAME,
+    infoplists = [":Info-visionOS"],
+    minimum_os_version = VISIONOS_MINIMUM_OS,
+    resources = [":app_assets"],
+    version = ":version",
+    visibility = ["//visibility:public"],
+    deps = [":StarterAppLib"],
+)
+
+# MARK: Apple Watch (single-target app, runs without the phone)
+
+swift_library(
+    name = "StarterAppWatchLib",
+    srcs = glob(["Watch/**/*.swift"]),
+    copts = MAIN_ACTOR_COPTS,
+    module_name = APP_NAME + "Watch",
+    deps = ["//ios/Modules:AppFeature"],
+)
+
+info_plist(
+    name = "Info-watchOS",
+    values = BASE_INFO_PLIST | {
+        "UISupportedInterfaceOrientations": [
+            "UIInterfaceOrientationPortrait",
+            "UIInterfaceOrientationPortraitUpsideDown",
+        ],
+        "WKApplication": True,
+        "WKCompanionAppBundleIdentifier": APP_BUNDLE_ID,
+        "WKRunsIndependentlyOfCompanionApp": True,
+    },
+)
+
+watchos_application(
+    name = "StarterAppWatch",
+    app_icons = glob(["Watch/Assets.xcassets/AppIcon.appiconset/**"]),
+    bundle_id = WATCH_BUNDLE_ID,
+    bundle_name = APP_NAME + "Watch",
+    infoplists = [":Info-watchOS"],
+    minimum_os_version = WATCHOS_MINIMUM_OS,
+    resources = glob(
+        ["Watch/Assets.xcassets/**"],
+        exclude = ["Watch/Assets.xcassets/AppIcon.appiconset/**"],
+    ),
+    version = ":version",
+    visibility = ["//visibility:public"],
+    deps = [":StarterAppWatchLib"],
+)
+
+# MARK: UI tests (XCTest, against the real iOS app)
+
+swift_library(
+    name = "StarterAppUITestsLib",
+    testonly = True,
+    srcs = glob(["UITests/**/*.swift"]),
+    module_name = APP_NAME + "UITests",
+    # The test bundle references nothing in the library; keep every test in the link.
+    alwayslink = True,
+)
+
+[
+    ios_ui_test(
+        name = "StarterAppUITests_" + device,
+        families = [
+            "iphone",
+            "ipad",
+        ],
+        minimum_os_version = IOS_MINIMUM_OS,
+        runner = runner,
+        test_host = ":StarterApp",
+        deps = [":StarterAppUITestsLib"],
+    )
+    for device, runner in {
+        "iPad": "//bazel:ipad_runner",
+        "iPhone": "//bazel:iphone_runner",
+    }.items()
+]

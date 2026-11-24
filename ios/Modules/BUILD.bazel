@@ -1,9 +1,15 @@
-# Bazel targets for the modules in Package.swift: one swift_library per module and one swift_test
-# (Swift Testing, on the macOS host) per test target. Keep the two in sync when adding a module.
+# Bazel targets for the modules in Package.swift: one swift_library per module and, per test
+# target, Swift Testing suites on the macOS host (`<Name>Tests`) and on the iPhone and iPad
+# simulators (`<Name>Tests_iPhone`, `<Name>Tests_iPad`). Keep this file in sync with Package.swift.
 
 load("@rules_swift//swift:swift_library.bzl", "swift_library")
-load("@rules_swift//swift:swift_test.bzl", "swift_test")
-load("//bazel:swift.bzl", "MAIN_ACTOR_COPTS", "SWIFT_FEATURES")
+load("//bazel:swift.bzl", "MAIN_ACTOR_COPTS", "SWIFT_FEATURES", "swift_module_tests")
+load("//ios/StarterApp:config.bzl", "IOS_MINIMUM_OS")
+
+IOS_RUNNERS = {
+    "iPad": "//bazel:ipad_runner",
+    "iPhone": "//bazel:iphone_runner",
+}
 
 package(
     default_visibility = ["//visibility:public"],
@@ -29,11 +35,12 @@ swift_library(
     ],
 )
 
-swift_test(
+swift_module_tests(
     name = "AppFeatureTests",
     srcs = glob(["Tests/AppFeatureTests/**/*.swift"]),
     copts = MAIN_ACTOR_COPTS,
-    module_name = "AppFeatureTests",
+    ios_minimum_os = IOS_MINIMUM_OS,
+    ios_runners = IOS_RUNNERS,
     deps = [
         ":AppFeature",
         ":Connectivity",
@@ -55,10 +62,11 @@ swift_library(
     ],
 )
 
-swift_test(
+swift_module_tests(
     name = "ConnectivityTests",
     srcs = glob(["Tests/ConnectivityTests/**/*.swift"]),
-    module_name = "ConnectivityTests",
+    ios_minimum_os = IOS_MINIMUM_OS,
+    ios_runners = IOS_RUNNERS,
     deps = [
         ":Connectivity",
         "@swiftpkg_alamofire//:Alamofire",
@@ -75,10 +83,11 @@ swift_library(
     ],
 )
 
-swift_test(
+swift_module_tests(
     name = "PersistenceTests",
     srcs = glob(["Tests/PersistenceTests/**/*.swift"]),
-    module_name = "PersistenceTests",
+    ios_minimum_os = IOS_MINIMUM_OS,
+    ios_runners = IOS_RUNNERS,
     deps = [
         ":Persistence",
         "@swiftpkg_grdb.swift//:GRDB",

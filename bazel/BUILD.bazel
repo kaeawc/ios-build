@@ -1,1 +1,27 @@
-# Shared Starlark for the BUILD files (see swift.bzl).
+# Shared Starlark (swift.bzl, plist.bzl) and the simulators tests run on.
+
+load("@rules_apple//apple/testing/default_runner:ios_xctestrun_runner.bzl", "ios_xctestrun_runner")
+
+package(default_visibility = ["//visibility:public"])
+
+# Simulators for `ios_unit_test` and `ios_ui_test`. The runner creates a fresh simulator of this
+# type and OS for each run. These exist on GitHub's macos-26 runners with Xcode 26.6; change them
+# with the Xcode version (`xcrun simctl list devicetypes runtimes`).
+IOS_SIMULATOR_OS = "26.5"
+
+ios_xctestrun_runner(
+    name = "iphone_runner",
+    # Keep screenshots the UI tests attach in the .xcresult bundle.
+    attachment_lifetime = "keepAlways",
+    create_xcresult_bundle = True,
+    device_type = "iPhone 17",
+    os_version = IOS_SIMULATOR_OS,
+)
+
+ios_xctestrun_runner(
+    name = "ipad_runner",
+    attachment_lifetime = "keepAlways",
+    create_xcresult_bundle = True,
+    device_type = "iPad (A16)",
+    os_version = IOS_SIMULATOR_OS,
+)
