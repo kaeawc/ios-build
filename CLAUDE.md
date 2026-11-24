@@ -20,12 +20,13 @@ bash scripts/ios/build.sh [platform] [Debug|Release]  # simulator build
 bash scripts/ios/test.sh [platform]                   # module tests + UI tests on a simulator
 UNIT_TESTS_ONLY=true bash scripts/ios/test.sh tvOS    # skip UI tests
 (cd ios/Modules && swift test)                        # module tests on the Mac host, no simulator
+bazel test //ios/Modules/...                          # same module tests via Bazel (bazelisk, .bazelversion)
 ```
 
 ### Lint and format
 ```bash
 bash scripts/lint.sh    # everything CI's Lint job runs
-bash scripts/format.sh  # SwiftFormat + SwiftLint --fix
+bash scripts/format.sh  # SwiftFormat + SwiftLint --fix + buildifier
 ```
 
 ## Architecture
@@ -37,6 +38,10 @@ bash scripts/format.sh  # SwiftFormat + SwiftLint --fix
   - `Persistence` — `AppDatabase` over GRDB: `Session` record, `DatabaseMigrator`, `ValueObservation` as `AsyncSequence`.
   - Each client module registers a `swift-dependencies` key with live/preview/test values. Test values
     fail on use (connectivity) or are fresh in-memory databases (persistence).
+- **Bazel** (migration in progress, issue #14): `MODULE.bazel` (rules_swift/rules_apple/apple_support +
+  rules_swift_package_manager reading `Package.swift` + committed `Package.resolved`), `ios/Modules/BUILD.bazel`
+  (`swift_library` + `swift_test` per module), shared Swift features in `bazel/swift.bzl`. A new module needs
+  entries in both `Package.swift` and `BUILD.bazel`. Regenerate `MODULE.bazel.lock` on a Mac (`bazel mod deps`).
 - **`ios/StarterApp`** — XcodeGen spec (`project.yml`) and thin app shells:
   - `StarterApp` target: iOS/iPadOS + tvOS + visionOS via `supportedDestinations`; embeds the watch app (iOS only).
   - `StarterAppWatch` target: watchOS app, independent of the phone.
@@ -54,10 +59,11 @@ bash scripts/format.sh  # SwiftFormat + SwiftLint --fix
 ## CI (`.github/workflows/ci.yml`)
 
 - **Lint** (ubuntu): `scripts/lint.sh` with mise-installed tools (`swiftlint-static` on Linux).
-- **Package tests** (macos-26): `swift test` in `ios/Modules`.
+- **Package tests** (macos-26): `swift test` in `ios/Modules`; fails if `Package.resolved` changes.
+- **Bazel (macOS host)** (macos-26): `bazel test //ios/Modules/...`; fails if `MODULE.bazel.lock` is stale.
 - **Test** matrix (macos-26, Xcode `XCODE_VERSION`): iOS, iPadOS, tvOS, visionOS, watchOS — generate project,
   `scripts/ios/test.sh <platform>`; iOS also builds Release. xcresult + crash logs uploaded on failure.
-- Renovate (`.github/renovate.json`) updates Package.swift, GitHub Actions and mise.toml. Xcode is bumped by hand.
+- Renovate (`.github/renovate.json`) updates Package.swift, MODULE.bazel, GitHub Actions and mise.toml. Xcode is bumped by hand.
 
 ## Code Style
 - **SwiftFormat** (`.swiftformat`): 120 columns, 4-space indent, Swift 6.2 rules. Owns all formatting.

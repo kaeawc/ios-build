@@ -5,7 +5,7 @@
 --swiftversion 6.2
 
 # File options
---exclude ios/**/build,ios/**/DerivedData,ios/**/.build,ios/**/Pods,ios/**/Carthage
+--exclude bazel-*,ios/**/build,ios/**/DerivedData,ios/**/.build,ios/**/Pods,ios/**/Carthage
 
 # Indentation
 --indent 4

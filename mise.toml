@@ -6,3 +6,6 @@ swiftformat = "0.64.7"
 xcodegen = "2.48.0"
 shellcheck = "0.11.0"
 actionlint = "1.7.12"
+# Bazel: bazelisk downloads the version in .bazelversion. buildifier formats and lints BUILD files.
+bazelisk = "1.30.0"
+buildifier = "10.2.0"

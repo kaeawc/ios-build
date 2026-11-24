@@ -21,5 +21,6 @@ DerivedData/
 # macOS
 .DS_Store
 
-# Not committed: versions float within the `from:` ranges in Package.swift (see README).
-Package.resolved
+# Bazel output symlinks and per-developer settings (remote cache keys and the like)
+/bazel-*
+user.bazelrc

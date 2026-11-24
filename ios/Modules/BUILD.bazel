@@ -1,0 +1,80 @@
+# Bazel targets for the modules in Package.swift: one swift_library per module and one swift_test
+# (Swift Testing, on the macOS host) per test target. Keep the two in sync when adding a module.
+
+load("@rules_swift//swift:swift_library.bzl", "swift_library")
+load("@rules_swift//swift:swift_test.bzl", "swift_test")
+load("//bazel:swift.bzl", "MAIN_ACTOR_COPTS", "SWIFT_FEATURES")
+
+package(
+    default_visibility = ["//visibility:public"],
+    features = SWIFT_FEATURES,
+)
+
+exports_files([
+    "Package.resolved",
+    "Package.swift",
+])
+
+# MARK: Features (SwiftUI, main-actor isolated by default)
+
+swift_library(
+    name = "AppFeature",
+    srcs = glob(["Sources/AppFeature/**/*.swift"]),
+    copts = MAIN_ACTOR_COPTS,
+    deps = [
+        ":Connectivity",
+        ":Persistence",
+        "@swiftpkg_swift_dependencies//:Dependencies",
+    ],
+)
+
+swift_test(
+    name = "AppFeatureTests",
+    srcs = glob(["Tests/AppFeatureTests/**/*.swift"]),
+    copts = MAIN_ACTOR_COPTS,
+    deps = [
+        ":AppFeature",
+        ":Connectivity",
+        ":Persistence",
+        "@swiftpkg_swift_dependencies//:Dependencies",
+        "@swiftpkg_swift_dependencies//:DependenciesTestSupport",
+    ],
+)
+
+# MARK: Clients & data (no UI, nonisolated by default)
+
+swift_library(
+    name = "Connectivity",
+    srcs = glob(["Sources/Connectivity/**/*.swift"]),
+    deps = [
+        "@swiftpkg_alamofire//:Alamofire",
+        "@swiftpkg_swift_dependencies//:Dependencies",
+    ],
+)
+
+swift_test(
+    name = "ConnectivityTests",
+    srcs = glob(["Tests/ConnectivityTests/**/*.swift"]),
+    deps = [
+        ":Connectivity",
+        "@swiftpkg_alamofire//:Alamofire",
+    ],
+)
+
+swift_library(
+    name = "Persistence",
+    srcs = glob(["Sources/Persistence/**/*.swift"]),
+    deps = [
+        "@swiftpkg_grdb.swift//:GRDB",
+        "@swiftpkg_swift_dependencies//:Dependencies",
+    ],
+)
+
+swift_test(
+    name = "PersistenceTests",
+    srcs = glob(["Tests/PersistenceTests/**/*.swift"]),
+    deps = [
+        ":Persistence",
+        "@swiftpkg_grdb.swift//:GRDB",
+    ],
+)

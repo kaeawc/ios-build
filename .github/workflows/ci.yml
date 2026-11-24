@@ -68,6 +68,69 @@ jobs:
         working-directory: ios/Modules
         run: swift test --parallel
 
+      # Bazel builds from the committed Package.resolved, so SwiftPM must not want to change it.
+      - name: Check Package.resolved
+        run: |
+          git diff --exit-code ios/Modules/Package.resolved || {
+            echo "::error::Package.resolved is out of date: run 'swift package resolve' in ios/Modules and commit it"
+            exit 1
+          }
+
+  # ===========================================================================
+  # The same module tests built and run by Bazel on the macOS host, so the
+  # Bazel build (ios/Modules/BUILD.bazel) can't drift from Package.swift.
+  # ===========================================================================
+
+  bazel-host:
+    name: Bazel (macOS host)
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      # rules_swift_package_manager reads the Swift packages with the selected Xcode.
+      - name: Select Xcode
+        run: sudo xcode-select --switch "/Applications/Xcode_${XCODE_VERSION}.app"
+
+      - uses: bazel-contrib/setup-bazel@0.19.2
+        with:
+          bazelisk-cache: true
+          # Outputs depend on the Xcode version, so it is part of the cache key.
+          disk-cache: bazel-host-xcode${{ env.XCODE_VERSION }}
+          repository-cache: true
+          # Pull requests read the caches that main writes.
+          cache-save: ${{ github.event_name != 'pull_request' }}
+
+      - name: bazel test
+        run: bazel test --config=ci --xcode_version="${XCODE_VERSION}" //ios/Modules/...
+
+      # After the build, so a stale lockfile doesn't hide test results.
+      - name: Check MODULE.bazel.lock
+        if: success() || failure()
+        run: |
+          bazel mod deps --lockfile_mode=update > /dev/null
+          [[ -z "$(git status --porcelain MODULE.bazel.lock)" ]] || {
+            echo "::error::MODULE.bazel.lock is out of date: run 'bazel mod deps' on a Mac and commit it"
+            exit 1
+          }
+
+      - name: Upload MODULE.bazel.lock
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: MODULE.bazel.lock
+          path: MODULE.bazel.lock
+          retention-days: 7
+
+      - name: Upload test logs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bazel-testlogs-host
+          path: bazel-testlogs/
+          if-no-files-found: ignore
+          retention-days: 7
+
   # ===========================================================================
   # Build and test the app on every platform's simulator.
   #

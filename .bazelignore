@@ -1,0 +1,4 @@
+# Build output from SwiftPM, xcodebuild and the scripts.
+build
+ios/Modules/.build
+ios/Modules/.swiftpm

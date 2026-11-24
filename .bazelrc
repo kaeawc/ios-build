@@ -1,0 +1,20 @@
+# Bazel settings for everyone. Put personal settings (and secrets, such as remote cache keys) in
+# an untracked user.bazelrc next to this file; it is imported at the end.
+
+# Don't leak the shell's PATH and other variables into actions: keeps the cache hermetic.
+common --incompatible_strict_action_env
+
+# The macOS host builds tools and runs the module tests (swift_test). Match the macOS version in
+# Package.swift's `platforms`.
+common --macos_minimum_os=15.0
+common --host_macos_minimum_os=15.0
+
+test --test_output=errors
+test --test_summary=terse
+
+# CI: plain output.
+common:ci --color=yes
+common:ci --curses=no
+common:ci --show_progress_rate_limit=30
+
+try-import %workspace%/user.bazelrc

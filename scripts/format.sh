@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# Formats all Swift code with SwiftFormat, then applies SwiftLint's automatic fixes.
+# Formats all Swift code with SwiftFormat, applies SwiftLint's automatic fixes, then formats the
+# Bazel files with buildifier.
 #
 # Usage: bash scripts/format.sh
 
@@ -14,3 +15,4 @@ fi
 
 swiftformat .
 "$swiftlint" lint --fix --quiet
+bash scripts/bazel/buildifier.sh fix

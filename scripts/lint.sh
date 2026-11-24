@@ -34,6 +34,7 @@ fi
 check "ShellCheck" env ONLY_TOUCHED_FILES=false bash scripts/shellcheck/validate_shell_scripts.sh
 check "SwiftFormat" swiftformat --lint ${swiftformat_reporter[@]+"${swiftformat_reporter[@]}"} .
 check "SwiftLint" "$swiftlint" lint --strict --quiet ${swiftlint_reporter[@]+"${swiftlint_reporter[@]}"}
+check "buildifier" bash scripts/bazel/buildifier.sh
 check "actionlint" actionlint
 check "YAML" bash scripts/yaml/validate_yaml.sh
 check "XML and property lists" bash scripts/xml/validate_xml.sh

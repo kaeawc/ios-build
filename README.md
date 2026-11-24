@@ -12,7 +12,8 @@ Swift Testing, linting, and GitHub Actions CI that builds and tests on every pla
 | Libraries | [GRDB](https://github.com/groue/GRDB.swift) (SQLite), [Alamofire](https://github.com/Alamofire/Alamofire) (HTTP), [swift-dependencies](https://github.com/pointfreeco/swift-dependencies) (dependency injection) |
 | Tests | Swift Testing for modules, XCTest for UI tests |
 | Project | [XcodeGen](https://github.com/yonaskolb/XcodeGen) + xcconfig files (no `.xcodeproj` in git) |
-| Tooling | SwiftFormat, SwiftLint, ShellCheck, actionlint, pinned with [mise](https://mise.jdx.dev) |
+| Build | [Bazel](https://bazel.build) for the modules (migration in progress, see [Bazel](#bazel)) |
+| Tooling | SwiftFormat, SwiftLint, buildifier, ShellCheck, actionlint, pinned with [mise](https://mise.jdx.dev) |
 | Automation | GitHub Actions (macOS 26 runners), [Renovate](https://docs.renovatebot.com) |
 
 The sample app records each launch in a SQLite database and checks network reachability. It's
@@ -36,7 +37,7 @@ deliberately small: it exists to show how the pieces fit together, and you'll re
 
    ```sh
    brew bundle            # mise, yamllint, librsvg
-   mise install           # XcodeGen, SwiftLint, SwiftFormat, ShellCheck, actionlint (versions in mise.toml)
+   mise install           # XcodeGen, bazelisk, buildifier, SwiftLint, SwiftFormat, ShellCheck, actionlint (versions in mise.toml)
    git config core.hooksPath .githooks
    ```
 
@@ -112,9 +113,12 @@ and the app targets (`Shared.xcconfig`).
 
 1. In [`Package.swift`](ios/Modules/Package.swift), add a `.target` (and a `.library` product if
    app targets import it directly) and a matching `.testTarget`.
-2. Add the test target to both schemes in [`project.yml`](ios/StarterApp/project.yml)
+2. Add the same module to [`ios/Modules/BUILD.bazel`](ios/Modules/BUILD.bazel): a `swift_library`
+   and a `swift_test` with the same dependencies (`MAIN_ACTOR_COPTS` for feature modules). CI runs
+   the module tests with both SwiftPM and Bazel, so the two can't drift apart silently.
+3. Add the test target to both schemes in [`project.yml`](ios/StarterApp/project.yml)
    (`package: Modules/<Name>Tests`), so it runs in Xcode and CI.
-3. Regenerate the project.
+4. Regenerate the project.
 
 ### Why XcodeGen?
 
@@ -149,7 +153,28 @@ bash scripts/ios/test.sh iPadOS             # build + run all tests on a simulat
 UNIT_TESTS_ONLY=true bash scripts/ios/test.sh visionOS
 
 cd ios/Modules && swift test                # module tests on the Mac itself, no simulator
+bazel test //ios/Modules/...                # the same module tests, built by Bazel
 ```
+
+### Bazel
+
+The app is moving to [Bazel](https://bazel.build) (tracked in
+[#14](https://github.com/kaeawc/ios-build/issues/14)): fast incremental builds, a shared remote
+cache, and Xcode on top through [rules_xcodeproj](https://github.com/MobileNativeFoundation/rules_xcodeproj).
+So far, Bazel builds and tests the modules on the macOS host:
+
+- [`MODULE.bazel`](MODULE.bazel) pins the rule sets (rules_swift, rules_apple, apple_support) and
+  pulls the Swift packages from `Package.swift` and the committed `Package.resolved` with
+  [rules_swift_package_manager](https://github.com/cgrindel/rules_swift_package_manager), so
+  SwiftPM and Bazel build the same versions. `MODULE.bazel.lock` is committed too; regenerate it
+  on a Mac with `bazel mod deps` after changing `MODULE.bazel` or `Package.resolved`.
+- [`bazel/swift.bzl`](bazel/swift.bzl) holds the Swift settings that `Package.swift` applies to
+  every module (Swift 6 mode and the same upcoming features), plus the main-actor default isolation
+  flag for feature modules. BUILD files apply them per package, so they never leak into the
+  external packages.
+- `bazel` is [bazelisk](https://github.com/bazelbuild/bazelisk) (installed by `mise install`),
+  which runs the version in [`.bazelversion`](.bazelversion). Put personal flags in an untracked
+  `user.bazelrc`.
 
 Test results go to `build/<platform>.xcresult`; open them in Xcode or inspect them with
 `xcrun xcresulttool get test-results summary --path build/iOS.xcresult`.
@@ -207,7 +232,7 @@ the generated project:
 ## Code quality
 
 ```sh
-bash scripts/lint.sh     # SwiftFormat (lint), SwiftLint (strict), ShellCheck, actionlint, yamllint, plist/XML, app icons
+bash scripts/lint.sh     # SwiftFormat (lint), SwiftLint (strict), buildifier, ShellCheck, actionlint, yamllint, plist/XML, app icons
 bash scripts/format.sh   # apply SwiftFormat and SwiftLint auto-fixes
 ```
 
@@ -222,7 +247,8 @@ Swift files, plus ShellCheck on staged scripts.
 | Job | Runner | What it does |
 | --- | --- | --- |
 | Lint | `ubuntu-latest` | `scripts/lint.sh` with the tool versions from `mise.toml` |
-| Package tests | `macos-26` | `swift test` in `ios/Modules` on the macOS host |
+| Package tests | `macos-26` | `swift test` in `ios/Modules` on the macOS host; checks `Package.resolved` is current |
+| Bazel (macOS host) | `macos-26` | `bazel test //ios/Modules/...`; checks `MODULE.bazel.lock` is current |
 | Test (iOS, iPadOS, tvOS, visionOS, watchOS) | `macos-26` | Generates the project, runs module and UI tests on that platform's simulator (module tests only on visionOS and watchOS); the iOS job also builds Release |
 
 The visionOS simulator is too slow on GitHub-hosted runners for XCUITest's app launch timeout, so
@@ -234,11 +260,13 @@ To move to a new Xcode, change `XCODE_VERSION` at the top of the workflow (see t
 ## Dependency updates
 
 [Renovate](https://docs.renovatebot.com) ([config](.github/renovate.json)) opens weekly pull
-requests for Swift packages in `Package.swift`, GitHub Actions, and the tools in `mise.toml`.
+requests for Swift packages in `Package.swift`, Bazel modules in `MODULE.bazel`, GitHub Actions,
+and the tools in `mise.toml`.
 [Install the Renovate GitHub App](https://github.com/apps/renovate) on your repository to enable it.
 Package versions use `from:` (up to the next major version) and Renovate raises the lower bound
-as new releases ship. `Package.resolved` isn't committed because the Xcode project is generated;
-pin with `exact:` if you need fully reproducible builds.
+as new releases ship. `Package.resolved` is committed: Bazel builds exactly the versions it pins,
+and CI fails if SwiftPM would resolve differently. After changing it, or `MODULE.bazel`, run
+`bazel mod deps` on a Mac and commit the updated `MODULE.bazel.lock`.
 
 ## License
 

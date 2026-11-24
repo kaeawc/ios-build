@@ -1,0 +1,24 @@
+"""Bazel module for the app. Swift packages come from ios/Modules/Package.swift (and its committed
+Package.resolved) through rules_swift_package_manager, so SwiftPM and Bazel build the same versions."""
+
+module(name = "starter_app")
+
+# apple_support must come before rules_cc (and anything that depends on it) so its Apple C/C++
+# toolchain is registered first: https://github.com/bazelbuild/apple_support#incompatible-toolchain-resolution
+bazel_dep(name = "apple_support", version = "2.12.0")
+bazel_dep(name = "rules_swift", version = "4.3.0")
+bazel_dep(name = "rules_apple", version = "5.4.0")
+bazel_dep(name = "rules_swift_package_manager", version = "1.26.0")
+
+swift_deps = use_extension("@rules_swift_package_manager//:extensions.bzl", "swift_deps")
+swift_deps.from_package(
+    resolved = "//ios/Modules:Package.resolved",
+    swift = "//ios/Modules:Package.swift",
+)
+use_repo(
+    swift_deps,
+    "swift_package",
+    "swiftpkg_alamofire",
+    "swiftpkg_grdb.swift",
+    "swiftpkg_swift_dependencies",
+)

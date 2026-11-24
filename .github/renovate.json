@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Keeps Swift packages (ios/Modules/Package.swift), GitHub Actions and the mise.toml developer tools up to date. Xcode is bumped by hand via XCODE_VERSION in .github/workflows/ci.yml.",
+  "description": "Keeps Swift packages (ios/Modules/Package.swift and Package.resolved), Bazel modules (MODULE.bazel and .bazelversion), GitHub Actions and the mise.toml developer tools up to date. Xcode is bumped by hand via XCODE_VERSION in .github/workflows/ci.yml.",
   "extends": [
     "config:recommended",
     ":dependencyDashboard",
@@ -19,6 +19,11 @@
       "matchManagers": ["swift"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "Swift packages (non-major)"
+    },
+    {
+      "description": "Bazel rule sets move together (rules_apple, rules_swift and apple_support are released in lockstep). MODULE.bazel.lock must be regenerated on a Mac (`bazel mod deps`); CI fails until it is.",
+      "matchManagers": ["bazel-module", "bazelisk"],
+      "groupName": "Bazel"
     },
     {
       "matchManagers": ["github-actions"],
