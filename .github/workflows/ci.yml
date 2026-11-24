@@ -110,7 +110,7 @@ jobs:
         run: |
           bazel mod deps --lockfile_mode=update > /dev/null
           [[ -z "$(git status --porcelain MODULE.bazel.lock)" ]] || {
-            echo "::error::MODULE.bazel.lock is out of date: run 'bazel mod deps' on a Mac and commit it"
+            echo "::error::MODULE.bazel.lock is out of date: run 'bazel mod deps' and commit it"
             exit 1
           }
 

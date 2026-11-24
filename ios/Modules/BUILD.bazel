@@ -21,6 +21,7 @@ swift_library(
     name = "AppFeature",
     srcs = glob(["Sources/AppFeature/**/*.swift"]),
     copts = MAIN_ACTOR_COPTS,
+    module_name = "AppFeature",
     deps = [
         ":Connectivity",
         ":Persistence",
@@ -32,6 +33,7 @@ swift_test(
     name = "AppFeatureTests",
     srcs = glob(["Tests/AppFeatureTests/**/*.swift"]),
     copts = MAIN_ACTOR_COPTS,
+    module_name = "AppFeatureTests",
     deps = [
         ":AppFeature",
         ":Connectivity",
@@ -46,6 +48,7 @@ swift_test(
 swift_library(
     name = "Connectivity",
     srcs = glob(["Sources/Connectivity/**/*.swift"]),
+    module_name = "Connectivity",
     deps = [
         "@swiftpkg_alamofire//:Alamofire",
         "@swiftpkg_swift_dependencies//:Dependencies",
@@ -55,6 +58,7 @@ swift_library(
 swift_test(
     name = "ConnectivityTests",
     srcs = glob(["Tests/ConnectivityTests/**/*.swift"]),
+    module_name = "ConnectivityTests",
     deps = [
         ":Connectivity",
         "@swiftpkg_alamofire//:Alamofire",
@@ -64,6 +68,7 @@ swift_test(
 swift_library(
     name = "Persistence",
     srcs = glob(["Sources/Persistence/**/*.swift"]),
+    module_name = "Persistence",
     deps = [
         "@swiftpkg_grdb.swift//:GRDB",
         "@swiftpkg_swift_dependencies//:Dependencies",
@@ -73,6 +78,7 @@ swift_library(
 swift_test(
     name = "PersistenceTests",
     srcs = glob(["Tests/PersistenceTests/**/*.swift"]),
+    module_name = "PersistenceTests",
     deps = [
         ":Persistence",
         "@swiftpkg_grdb.swift//:GRDB",

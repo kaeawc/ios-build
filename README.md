@@ -167,7 +167,7 @@ So far, Bazel builds and tests the modules on the macOS host:
   pulls the Swift packages from `Package.swift` and the committed `Package.resolved` with
   [rules_swift_package_manager](https://github.com/cgrindel/rules_swift_package_manager), so
   SwiftPM and Bazel build the same versions. `MODULE.bazel.lock` is committed too; regenerate it
-  on a Mac with `bazel mod deps` after changing `MODULE.bazel` or `Package.resolved`.
+  with `bazel mod deps` after changing `MODULE.bazel` or `Package.resolved`.
 - [`bazel/swift.bzl`](bazel/swift.bzl) holds the Swift settings that `Package.swift` applies to
   every module (Swift 6 mode and the same upcoming features), plus the main-actor default isolation
   flag for feature modules. BUILD files apply them per package, so they never leak into the
@@ -266,7 +266,7 @@ and the tools in `mise.toml`.
 Package versions use `from:` (up to the next major version) and Renovate raises the lower bound
 as new releases ship. `Package.resolved` is committed: Bazel builds exactly the versions it pins,
 and CI fails if SwiftPM would resolve differently. After changing it, or `MODULE.bazel`, run
-`bazel mod deps` on a Mac and commit the updated `MODULE.bazel.lock`.
+`bazel mod deps` and commit the updated `MODULE.bazel.lock`.
 
 ## License
 

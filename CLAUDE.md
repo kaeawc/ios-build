@@ -41,7 +41,7 @@ bash scripts/format.sh  # SwiftFormat + SwiftLint --fix + buildifier
 - **Bazel** (migration in progress, issue #14): `MODULE.bazel` (rules_swift/rules_apple/apple_support +
   rules_swift_package_manager reading `Package.swift` + committed `Package.resolved`), `ios/Modules/BUILD.bazel`
   (`swift_library` + `swift_test` per module), shared Swift features in `bazel/swift.bzl`. A new module needs
-  entries in both `Package.swift` and `BUILD.bazel`. Regenerate `MODULE.bazel.lock` on a Mac (`bazel mod deps`).
+  entries in both `Package.swift` and `BUILD.bazel`. Regenerate `MODULE.bazel.lock` with `bazel mod deps`.
 - **`ios/StarterApp`** — XcodeGen spec (`project.yml`) and thin app shells:
   - `StarterApp` target: iOS/iPadOS + tvOS + visionOS via `supportedDestinations`; embeds the watch app (iOS only).
   - `StarterAppWatch` target: watchOS app, independent of the phone.
