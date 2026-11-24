@@ -37,6 +37,7 @@ check "SwiftLint" "$swiftlint" lint --strict --quiet ${swiftlint_reporter[@]+"${
 check "actionlint" actionlint
 check "YAML" bash scripts/yaml/validate_yaml.sh
 check "XML and property lists" bash scripts/xml/validate_xml.sh
+check "App icons" bash scripts/icons/validate_app_icons.sh
 
 if [[ ${#failed[@]} -gt 0 ]]; then
   echo "✗ Failed: ${failed[*]}"

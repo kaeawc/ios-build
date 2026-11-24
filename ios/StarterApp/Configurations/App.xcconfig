@@ -12,10 +12,12 @@ SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO
 SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO
 
 ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor
-// tvOS needs an "App Icon & Top Shelf Image" brand asset and visionOS a layered image stack; add
-// them to App/Assets.xcassets and set the name for those SDKs before shipping there.
-ASSETCATALOG_COMPILER_APPICON_NAME =
-ASSETCATALOG_COMPILER_APPICON_NAME[sdk=iphone*] = AppIcon
+// Each platform has its own icon format: an app icon set on iOS, a brand asset (layered icon and
+// Top Shelf images) on tvOS and a layered image stack on visionOS. The placeholders come from
+// scripts/icons/generate.sh; replace them with real artwork before shipping.
+ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
+ASSETCATALOG_COMPILER_APPICON_NAME[sdk=appletv*] = AppIcon-tvOS
+ASSETCATALOG_COMPILER_APPICON_NAME[sdk=xr*] = AppIcon-visionOS
 
 // Info.plist is generated from these keys; there is no Info.plist file to maintain.
 GENERATE_INFOPLIST_FILE = YES

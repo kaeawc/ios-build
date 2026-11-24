@@ -30,11 +30,12 @@ deliberately small: it exists to show how the pieces fit together, and you'll re
    This replaces `StarterApp` everywhere (targets, schemes, files, directories) and sets
    `BUNDLE_ID_PREFIX` and `APP_DISPLAY_NAME` in
    [`Shared.xcconfig`](ios/StarterApp/Configurations/Shared.xcconfig). The app's bundle ID
-   becomes `com.acme.Weather` and the watch app's `com.acme.Weather.watchkitapp`.
+   becomes `com.acme.Weather` and the watch app's `com.acme.Weather.watchkitapp`. If
+   `rsvg-convert` is installed, it also regenerates the placeholder app icons with the new initial.
 3. Install the tools and the git hooks:
 
    ```sh
-   brew bundle            # mise, yamllint
+   brew bundle            # mise, yamllint, librsvg
    mise install           # XcodeGen, SwiftLint, SwiftFormat, ShellCheck, actionlint (versions in mise.toml)
    git config core.hooksPath .githooks
    ```
@@ -70,6 +71,7 @@ ios/
     UITests/                    XCTest UI tests
 scripts/
   ios/                          xcodegen-generate, build, test, find-simulator
+  icons/                        Placeholder app icon generator and the lint check for empty icon slots
   lint.sh, format.sh            Run every check / fix formatting
   rename.sh                     Rename the template
 .github/
@@ -166,9 +168,22 @@ watch app is a separate target that ships inside the iOS app and also runs indep
 - **Apple Watch**: shares `AppView`. `WKRunsIndependentlyOfCompanionApp` is on, so the watch app
   works without the phone nearby.
 - **Apple TV**: there is no persistent local storage on tvOS, so the database lives in Caches.
-  Before shipping, add an "App Icon & Top Shelf Image" brand asset.
-- **Apple Vision Pro**: runs as a native visionOS app in a window. Before shipping, add a layered
-  visionOS app icon.
+- **Apple Vision Pro**: runs as a native visionOS app in a window.
+
+**App icons** are placeholders (the app's initial on a flat colour) so every platform's archive
+passes App Store validation. Each platform has its own format, generated from one design by
+[`scripts/icons/generate.sh`](scripts/icons/generate.sh):
+
+| Platform | Asset | Contents |
+| --- | --- | --- |
+| iOS, iPadOS | `App/Assets.xcassets/AppIcon.appiconset` | 1024 pt light, dark and tinted |
+| watchOS | `Watch/Assets.xcassets/AppIcon.appiconset` | 1024 pt |
+| tvOS | `App/Assets.xcassets/AppIcon-tvOS.brandassets` | Layered App Icon (front, middle, back), App Store icon, Top Shelf and Top Shelf Wide |
+| visionOS | `App/Assets.xcassets/AppIcon-visionOS.solidimagestack` | Three 1024 pt layers (front, middle, back) |
+
+`App.xcconfig` picks the asset per SDK. Replace the images with real artwork before shipping, or
+rerun `bash scripts/icons/generate.sh [initial] [#RRGGBB]` (needs `rsvg-convert`: `brew bundle`
+installs it). `scripts/lint.sh` fails if an icon slot is empty.
 
 To drop a platform, remove it from `supportedDestinations` (or delete the `StarterAppWatch`
 target and its dependency), from the CI matrix, and from `platforms` in `Package.swift`.
@@ -192,7 +207,7 @@ the generated project:
 ## Code quality
 
 ```sh
-bash scripts/lint.sh     # SwiftFormat (lint), SwiftLint (strict), ShellCheck, actionlint, yamllint, plist/XML
+bash scripts/lint.sh     # SwiftFormat (lint), SwiftLint (strict), ShellCheck, actionlint, yamllint, plist/XML, app icons
 bash scripts/format.sh   # apply SwiftFormat and SwiftLint auto-fixes
 ```
 
