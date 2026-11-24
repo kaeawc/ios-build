@@ -72,10 +72,18 @@ git ls-files | grep "/$old_name/" | sed "s|/$old_name/.*|/$old_name|" | sort -u 
     git mv "$dir" "${dir%"$old_name"}$new_name"
   done
 
+# 3. Placeholder app icons with the new initial and Top Shelf name.
+icons_step="Regenerate the app icons:    bash scripts/icons/generate.sh (needs rsvg-convert)"
+if command -v rsvg-convert >/dev/null 2>&1; then
+  bash scripts/icons/generate.sh
+  icons_step="Replace the placeholder icons in ios/$new_name/{App,Watch}/Assets.xcassets"
+fi
+
 echo "Renamed $old_name → $new_name ($new_prefix.$new_name, \"$display_name\")."
 echo
 echo "Next:"
 echo "  1. Review the changes:          git status && git diff --stat"
 echo "  2. Regenerate the project:      bash scripts/ios/xcodegen-generate.sh"
 echo "  3. Set DEVELOPMENT_TEAM in      ios/$new_name/Configurations/Shared.xcconfig (or Local.xcconfig)"
-echo "  4. Update the copyright holder in LICENSE, and README.md"
+echo "  4. $icons_step"
+echo "  5. Update the copyright holder in LICENSE, and README.md"
