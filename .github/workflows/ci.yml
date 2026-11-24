@@ -132,6 +132,104 @@ jobs:
           retention-days: 7
 
   # ===========================================================================
+  # Bazel: build every app, then run the module and UI tests on the iPhone and
+  # iPad simulators. tvOS, visionOS and watchOS tests stay on xcodebuild (the
+  # Test job below): rules_apple has no working test runner for them yet.
+  # ===========================================================================
+
+  bazel-apps:
+    name: Bazel build (all apps)
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode
+        run: sudo xcode-select --switch "/Applications/Xcode_${XCODE_VERSION}.app"
+
+      - uses: bazel-contrib/setup-bazel@0.19.2
+        with:
+          bazelisk-cache: true
+          disk-cache: bazel-apps-xcode${{ env.XCODE_VERSION }}
+          repository-cache: true
+          cache-save: ${{ github.event_name != 'pull_request' }}
+
+      # The iOS app embeds the watch app; the watch app is also built on its own.
+      - name: Build (Debug, simulators)
+        run: |
+          bazel build --config=ci --xcode_version="${XCODE_VERSION}" \
+            //ios/StarterApp:StarterApp \
+            //ios/StarterApp:StarterAppWatch \
+            //ios/StarterApp:StarterApp_tvOS \
+            //ios/StarterApp:StarterApp_visionOS
+
+      - name: Build iOS (Release)
+        run: bazel build --config=ci --xcode_version="${XCODE_VERSION}" -c opt //ios/StarterApp:StarterApp
+
+  bazel-test:
+    name: Bazel test (${{ matrix.device }})
+    runs-on: macos-26
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [iPhone, iPad]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode
+        run: sudo xcode-select --switch "/Applications/Xcode_${XCODE_VERSION}.app"
+
+      - uses: bazel-contrib/setup-bazel@0.19.2
+        with:
+          bazelisk-cache: true
+          disk-cache: bazel-test-xcode${{ env.XCODE_VERSION }}
+          repository-cache: true
+          cache-save: ${{ github.event_name != 'pull_request' && matrix.device == 'iPhone' }}
+
+      # Module tests (Swift Testing) and UI tests (XCTest) tagged for this device's simulator.
+      - name: bazel test
+        env:
+          DEVICE: ${{ matrix.device }}
+        run: |
+          tag=$(echo "$DEVICE" | tr '[:upper:]' '[:lower:]')
+          bazel test --config=ci --xcode_version="${XCODE_VERSION}" \
+            --test_tag_filters="$tag" --build_tests_only --nozip_undeclared_test_outputs \
+            //ios/...
+
+      # Screenshots the UI tests attach (one per screen), handy for reviewing UI changes.
+      - name: Export screenshots
+        if: always()
+        env:
+          DEVICE: ${{ matrix.device }}
+        run: |
+          result="bazel-testlogs/ios/StarterApp/StarterAppUITests_${DEVICE}/test.outputs/tests.xcresult"
+          if [[ -d "$result" ]]; then
+            xcrun xcresulttool export attachments --path "$result" --output-path "build/screenshots/$DEVICE"
+          fi
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: screenshots-bazel-${{ matrix.device }}
+          path: build/screenshots/${{ matrix.device }}
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bazel-testlogs-${{ matrix.device }}
+          path: |
+            bazel-testlogs/**/test.log
+            bazel-testlogs/**/test.xml
+            bazel-testlogs/**/tests.xcresult
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ===========================================================================
   # Build and test the app on every platform's simulator.
   #
   # Each job generates the Xcode project with XcodeGen, then runs the module

@@ -32,7 +32,8 @@ def swift_module_tests(name, srcs, deps = [], copts = [], ios_runners = {}, ios_
     Creates:
       - `<name>`: `swift_test` on the macOS host (no simulator), like `swift test`.
       - `<name>Lib`: the test sources as a testonly `swift_library`.
-      - `<name>_<suffix>`: an `ios_unit_test` per entry in `ios_runners`, run on that simulator.
+      - `<name>_<suffix>`: an `ios_unit_test` per entry in `ios_runners`, run on that simulator
+        and tagged with the lowercased suffix.
 
     Args:
         name: test target name, matching the `.testTarget` in Package.swift.
@@ -66,5 +67,7 @@ def swift_module_tests(name, srcs, deps = [], copts = [], ios_runners = {}, ios_
             name = name + "_" + suffix,
             minimum_os_version = ios_minimum_os,
             runner = runner,
+            # e.g. `bazel test --test_tag_filters=iphone //...` runs everything on the iPhone simulator.
+            tags = [suffix.lower()],
             deps = [":" + name + "Lib"],
         )

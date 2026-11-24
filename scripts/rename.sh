@@ -58,6 +58,11 @@ shared=ios/$old_name/Configurations/Shared.xcconfig
 perl -pi -e "s/^BUNDLE_ID_PREFIX = \Q$old_prefix\E\$/BUNDLE_ID_PREFIX = $new_prefix/" "$shared"
 perl -pi -e "s/^APP_DISPLAY_NAME = .*\$/APP_DISPLAY_NAME = $display_name/" "$shared"
 
+# The same identity for Bazel.
+config=ios/$old_name/config.bzl
+perl -pi -e "s/^BUNDLE_ID_PREFIX = \"\Q$old_prefix\E\"\$/BUNDLE_ID_PREFIX = \"$new_prefix\"/" "$config"
+perl -pi -e "s/^APP_DISPLAY_NAME = \".*\"\$/APP_DISPLAY_NAME = \"$display_name\"/" "$config"
+
 # 2. File and directory names, deepest first so parents are renamed last.
 git ls-files | grep "$old_name" | awk -F/ '{ print NF "\t" $0 }' | sort -rn | cut -f2- |
   while IFS= read -r path; do

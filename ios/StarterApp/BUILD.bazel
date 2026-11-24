@@ -227,6 +227,7 @@ swift_library(
         ],
         minimum_os_version = IOS_MINIMUM_OS,
         runner = runner,
+        tags = [device.lower()],
         test_host = ":StarterApp",
         deps = [":StarterAppUITestsLib"],
     )
